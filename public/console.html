@@ -281,7 +281,7 @@ function renderMembers(){
   var head='<thead><tr>'+sortableTh('Name','name',memState)+sortableTh('Email','email',memState)+sortableTh('Organisation','orgName',memState)+sortableTh('Role','role',memState)+sortableTh('State','status',memState)+sortableTh('Pwd age','passwordAgeDays',memState)+'<th>Actions</th></tr></thead>';
   var trs=rows.map(function(m){
     var state=m.suspended?'<span class="badge b-locked">suspended</span>':(m.locked?'<span class="badge b-locked">locked</span>':'<span class="badge b-'+(m.status==='active'?'active':'invited')+'">'+m.status+'</span>');
-    var age=m.passwordAgeDays==null?'—':(m.passwordAgeDays+'d');
+    var age=m.passwordAgeDays==null?'-':(m.passwordAgeDays+'d');
     var acts='<button class="ghost" onclick="memForceReset(\''+m.id+'\')">Force reset</button>';
     if(m.locked) acts+='<button class="go" onclick="memUnlock(\''+m.id+'\')">Unlock</button>';
     acts+=(m.suspended?'<button class="go" onclick="memSuspend(\''+m.id+'\',\'restore\')">Restore</button>':'<button class="no" onclick="memSuspend(\''+m.id+'\',\'suspend\')">Suspend</button>');
@@ -435,7 +435,7 @@ function renderLimits(){
   document.getElementById('org-export').onclick=function(){ downloadCSV('enjeeoh-organisations-'+tab+'-'+new Date().toISOString().slice(0,10)+'.csv',['name','email','status','members','max_members','state','created'],orgsFiltered().map(function(a){return [a.name,a.email,a.status,a.memberCount,a.maxMembers||0,orgBucket(a),a.createdAt];})); };
 }
 window.setOrgCap2=function(id){ fetch('/api/console/org/'+id+'/limit',{method:'PUT',headers:H(),body:JSON.stringify({maxMembers:document.getElementById('cap-'+id).value})}).then(loadLimits); };
-window.orgLock=function(id,name){ appConfirm({title:'Lock organisation',message:'Lock "'+name+'"? All access is blocked — its members cannot sign in and its booking pages stop working — until you unlock it.',confirmText:'Lock access',danger:true}).then(function(ok){ if(ok) fetch('/api/console/org/'+id+'/suspend',{method:'POST',headers:H()}).then(loadLimits); }); };
+window.orgLock=function(id,name){ appConfirm({title:'Lock organisation',message:'Lock "'+name+'"? All access is blocked, its members cannot sign in and its booking pages stop working, until you unlock it.',confirmText:'Lock access',danger:true}).then(function(ok){ if(ok) fetch('/api/console/org/'+id+'/suspend',{method:'POST',headers:H()}).then(loadLimits); }); };
 window.orgReactivate=function(id){ fetch('/api/console/org/'+id+'/reactivate',{method:'POST',headers:H()}).then(function(){ appToast('Organisation reactivated.','ok'); loadLimits(); }); };
 window.orgSoftDelete=function(id,name){ appConfirm({title:'Delete organisation',message:'Move "'+name+'" to Deleted? It loses all access immediately, but its data is kept so you can reactivate it later.',confirmText:'Delete',danger:true}).then(function(ok){ if(ok) fetch('/api/console/org/'+id+'/soft-delete',{method:'POST',headers:H()}).then(loadLimits); }); };
 window.orgPurge=function(id,name){ appConfirm({title:'Delete permanently',message:'Permanently erase "'+name+'" and all its members, bookings and data? This cannot be undone.',confirmText:'Delete forever',danger:true}).then(function(ok){ if(!ok)return; appConfirm({title:'Are you absolutely sure?',message:'This is irreversible. Everything belonging to "'+name+'" will be erased.',confirmText:'Yes, erase it',danger:true}).then(function(ok2){ if(ok2) fetch('/api/console/org/'+id,{method:'DELETE',headers:H()}).then(loadLimits); }); }); };
@@ -478,7 +478,7 @@ window.bulkAdd=function(id){
     .then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error);return d;});})
     .then(function(d){
       res.style.color='var(--accent)';
-      var msg='Added '+d.added+(d.emailed?' (emails sent)':' (email is OFF — no emails sent)')+'.';
+      var msg='Added '+d.added+(d.emailed?' (emails sent)':' (email is OFF, no emails sent)')+'.';
       if(d.skipped&&d.skipped.length) msg+='\nSkipped: '+d.skipped.join('; ');
       if(d.errors&&d.errors.length){ res.style.color='#C0392B'; msg+='\nErrors: '+d.errors.join('; '); }
       msg+='\nReopen the Members list to see them.'; res.textContent=msg;
@@ -492,37 +492,52 @@ window.memReset2=function(mid,oid){ appConfirm({title:'Force password reset',mes
 window.saveLimits=function(){ fetch('/api/console/limits',{method:'PUT',headers:H(),body:JSON.stringify({globalMax:document.getElementById('gmax').value,orgDefault:document.getElementById('odef').value})}).then(loadLimits); };
 
 // ================= REPORTS (all bookings) =================
-var reportData=null, reportState={filter:'',q:''};
+var reportData=null, reportState={filter:'',org:'',q:'',page:1,pageSize:50};
 function loadReports(){ fetch('/api/console/report',{headers:H()}).then(function(r){return r.json();}).then(function(d){ reportData=d; renderReports(); }).catch(function(){showLogin();}); }
 function reportFmt(iso){ return new Date(iso).toLocaleString([],{day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'}); }
-function renderReports(){
-  if(!reportData) return; var s=reportData.summary, now=Date.now();
-  var cards=[['Total',s.total],['Upcoming',s.upcoming],['Completed',s.completed],['Cancelled',s.cancelled],['Rescheduled',s.rescheduled]].map(function(x){return '<div class="card" style="flex:1;min-width:100px;text-align:center;margin:0"><div style="font:700 22px Space Grotesk">'+x[1]+'</div><div class="meta">'+x[0]+'</div></div>';}).join('');
-  var toolbar='<div class="toolbar"><select id="rep-filter"><option value="">All</option><option value="upcoming">Upcoming</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="rescheduled">Rescheduled</option></select><input type="search" id="rep-q" placeholder="Search org, name, email, service…" value="'+attr(reportState.q)+'"><button class="ghost" id="rep-export">Export CSV</button></div>';
-  var rows=reportData.bookings.filter(function(b){ var future=new Date(b.start).getTime()>now;
+function reportFiltered(){
+  var now=Date.now();
+  return reportData.bookings.filter(function(b){ var future=new Date(b.start).getTime()>now;
+    if(reportState.org&&b.org!==reportState.org)return false;
     if(reportState.filter==='cancelled'&&b.status!=='cancelled')return false;
     if(reportState.filter==='upcoming'&&!(b.status!=='cancelled'&&future))return false;
     if(reportState.filter==='completed'&&!(b.status!=='cancelled'&&!future))return false;
     if(reportState.filter==='rescheduled'&&!(b.rescheduleCount>0))return false;
     return textIncludes(b,['org','service','member','bookerName','bookerEmail'],reportState.q);
   });
-  var body=rows.slice(0,500).map(function(b){ var future=new Date(b.start).getTime()>now;
+}
+function renderReports(){
+  if(!reportData) return; var s=reportData.summary, now=Date.now();
+  var cards=[['Total',s.total],['Upcoming',s.upcoming],['Completed',s.completed],['Cancelled',s.cancelled],['Rescheduled',s.rescheduled]].map(function(x){return '<div class="card" style="flex:1;min-width:100px;text-align:center;margin:0"><div style="font:700 22px Space Grotesk">'+x[1]+'</div><div class="meta">'+x[0]+'</div></div>';}).join('');
+  var orgs=[]; reportData.bookings.forEach(function(b){ if(orgs.indexOf(b.org)<0)orgs.push(b.org); }); orgs.sort();
+  var orgSel='<select id="rep-org"><option value="">All organisations</option>'+orgs.map(function(o){return '<option value="'+attr(o)+'"'+(reportState.org===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select>';
+  var toolbar='<div class="toolbar">'+orgSel+'<select id="rep-filter"><option value="">All statuses</option><option value="upcoming">Upcoming</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="rescheduled">Rescheduled</option></select><input type="search" id="rep-q" placeholder="Search name, email, service" value="'+attr(reportState.q)+'"><select id="rep-size"><option value="50"'+(reportState.pageSize===50?' selected':'')+'>50 / page</option><option value="100"'+(reportState.pageSize===100?' selected':'')+'>100 / page</option></select><button class="ghost" id="rep-export">Export CSV (filtered)</button></div>';
+  var rows=reportFiltered();
+  var pages=Math.max(1,Math.ceil(rows.length/reportState.pageSize));
+  if(reportState.page>pages) reportState.page=pages;
+  var pageRows=rows.slice((reportState.page-1)*reportState.pageSize, reportState.page*reportState.pageSize);
+  var body=pageRows.map(function(b){ var future=new Date(b.start).getTime()>now;
     var status=b.status==='cancelled'?'<span style="color:#E06A62">Cancelled</span>':(future?'Upcoming':'Completed');
-    var notes=b.cancelledBy?('Cancelled by '+esc(b.cancelledBy)):(b.rescheduleCount>0?('Resched. '+b.rescheduleCount+'× by '+esc(b.rescheduledBy||'?')):'');
+    var notes=b.cancelledBy?('Cancelled by '+esc(b.cancelledBy)):(b.rescheduleCount>0?('Resched. '+b.rescheduleCount+'x by '+esc(b.rescheduledBy||'?')):'');
     return '<tr><td class="mono">'+esc(reportFmt(b.start))+'</td><td>'+esc(b.org)+'</td><td>'+esc(b.service)+'</td><td>'+esc(b.member)+'</td><td>'+esc(b.bookerName)+'<div class="meta">'+esc(b.bookerEmail)+'</div></td><td>'+status+'</td><td class="meta">'+notes+'</td></tr>';
   }).join('');
-  document.getElementById('reports').innerHTML='<div class="card"><h3 style="margin:0 0 10px;font:600 16px Space Grotesk">Bookings &amp; sessions</h3><div class="row" style="gap:10px;margin-bottom:12px">'+cards+'</div>'+toolbar+'<div style="overflow-x:auto"><table><thead><tr><th>When</th><th>Organisation</th><th>Service</th><th>With</th><th>Booked by</th><th>Status</th><th>Notes</th></tr></thead><tbody>'+(body||'<tr><td colspan="7">No bookings.</td></tr>')+'</tbody></table></div><div class="meta" style="margin-top:6px">'+rows.length+' bookings</div></div>';
+  var pager='<div class="pager"><span class="meta">'+rows.length+' bookings, page '+reportState.page+' of '+pages+'</span><button class="ghost" id="rep-prev"'+(reportState.page<=1?' disabled':'')+'>Prev</button><button class="ghost" id="rep-next"'+(reportState.page>=pages?' disabled':'')+'>Next</button></div>';
+  document.getElementById('reports').innerHTML='<div class="card"><h3 style="margin:0 0 10px;font:600 16px Space Grotesk">Bookings &amp; sessions</h3><div class="row" style="gap:10px;margin-bottom:12px">'+cards+'</div>'+toolbar+'<div style="overflow-x:auto"><table><thead><tr><th>When</th><th>Organisation</th><th>Service</th><th>With</th><th>Booked by</th><th>Status</th><th>Notes</th></tr></thead><tbody>'+(body||'<tr><td colspan="7">No bookings.</td></tr>')+'</tbody></table></div>'+pager+'</div>';
+  document.getElementById('rep-org').onchange=function(){reportState.org=this.value;reportState.page=1;renderReports();};
   document.getElementById('rep-filter').value=reportState.filter;
-  document.getElementById('rep-filter').onchange=function(){reportState.filter=this.value;renderReports();};
-  document.getElementById('rep-q').oninput=function(){reportState.q=this.value;renderReports();var i=document.getElementById('rep-q');i.focus();i.setSelectionRange(i.value.length,i.value.length);};
+  document.getElementById('rep-filter').onchange=function(){reportState.filter=this.value;reportState.page=1;renderReports();};
+  document.getElementById('rep-q').oninput=function(){reportState.q=this.value;reportState.page=1;renderReports();var i=document.getElementById('rep-q');i.focus();i.setSelectionRange(i.value.length,i.value.length);};
+  document.getElementById('rep-size').onchange=function(){reportState.pageSize=Number(this.value);reportState.page=1;renderReports();};
+  if(document.getElementById('rep-prev'))document.getElementById('rep-prev').onclick=function(){if(reportState.page>1){reportState.page--;renderReports();}};
+  if(document.getElementById('rep-next'))document.getElementById('rep-next').onclick=function(){if(reportState.page<pages){reportState.page++;renderReports();}};
   document.getElementById('rep-export').onclick=function(){
     downloadCSV('enjeeoh-bookings-'+new Date().toISOString().slice(0,10)+'.csv',['when','org','service','with','booker','email','status','cancelled_by','rescheduled_by','reschedule_count','created'],
-      rows.map(function(b){return [reportFmt(b.start),b.org,b.service,b.member,b.bookerName,b.bookerEmail,b.status,b.cancelledBy,b.rescheduledBy,b.rescheduleCount,b.createdAt];}));
+      reportFiltered().map(function(b){return [reportFmt(b.start),b.org,b.service,b.member,b.bookerName,b.bookerEmail,b.status,b.cancelledBy,b.rescheduledBy,b.rescheduleCount,b.createdAt];}));
   };
 }
 
 // ================= EMAIL TEMPLATES (visual editor only) =================
-// The body is edited in a WYSIWYG contenteditable surface — there is no raw-HTML
+// The body is edited in a WYSIWYG contenteditable surface, there is no raw-HTML
 // field. A toolbar drives document.execCommand for formatting, and placeholder
 // chips insert {{tokens}} at the cursor. We save the editor's innerHTML.
 function tbtn(label, cmd, k){ return '<button type="button" class="ghost" style="padding:5px 9px" onmousedown="return etCmd(event,\''+cmd+'\',\''+k+'\')">'+label+'</button>'; }
@@ -534,22 +549,22 @@ function loadEmails(){
       return '<details class="acc"><summary>'+esc(d.label)+(d.customised?' <span class="badge b-pending">customised</span>':'')+'</summary><div class="acc-body">'+
         '<div class="field"><label>Subject</label><input style="width:100%" id="et-sub-'+k+'" value="'+attr(d.subject)+'"></div>'+
         '<div class="field"><label>Message</label>'+
-          '<div class="toolbar" style="margin:0 0 6px;gap:4px">'+tbtn('<b>B</b>','bold',k)+tbtn('<i>I</i>','italic',k)+tbtn('<u>U</u>','underline',k)+tbtn('Heading','formatBlock:h3',k)+tbtn('• List','insertUnorderedList',k)+tbtn('Link','createLink',k)+tbtn('🖼 Image','image',k)+tbtn('Clear','removeFormat',k)+'</div>'+
+          '<div class="toolbar" style="margin:0 0 6px;gap:4px">'+tbtn('<b>B</b>','bold',k)+tbtn('<i>I</i>','italic',k)+tbtn('<u>U</u>','underline',k)+tbtn('Heading','formatBlock:h3',k)+tbtn('• List','insertUnorderedList',k)+tbtn('Link','createLink',k)+tbtn('Image','image',k)+tbtn('Clear','removeFormat',k)+'</div>'+
           '<div id="et-html-'+k+'" contenteditable="true" class="wysiwyg">'+d.html+'</div>'+
           '<div class="meta" style="margin-top:6px">Insert placeholder: '+vars+'</div>'+
         '</div>'+
         '<div class="lim"><button class="go" onclick="saveTpl(\''+k+'\')">Save</button><button class="ghost" onclick="etPreview(\''+k+'\')">Preview</button><button class="ghost" onclick="resetTpl(\''+k+'\')">Reset to default</button><span class="err" id="et-msg-'+k+'" style="margin:0"></span></div></div></details>';
     }).join('');
     var pu=t.policyUpdate||{subject:'',html:''};
-    var bcToolbar='<div class="toolbar" style="margin:0 0 6px;gap:4px">'+tbtn('<b>B</b>','bold','broadcast')+tbtn('<i>I</i>','italic','broadcast')+tbtn('Heading','formatBlock:h3','broadcast')+tbtn('• List','insertUnorderedList','broadcast')+tbtn('Link','createLink','broadcast')+tbtn('🖼 Image','image','broadcast')+tbtn('Clear','removeFormat','broadcast')+'</div>';
+    var bcToolbar='<div class="toolbar" style="margin:0 0 6px;gap:4px">'+tbtn('<b>B</b>','bold','broadcast')+tbtn('<i>I</i>','italic','broadcast')+tbtn('Heading','formatBlock:h3','broadcast')+tbtn('• List','insertUnorderedList','broadcast')+tbtn('Link','createLink','broadcast')+tbtn('Image','image','broadcast')+tbtn('Clear','removeFormat','broadcast')+'</div>';
     var broadcast='<div class="card"><h3 style="margin:0 0 4px;font:600 16px Space Grotesk">Send an announcement / policy update</h3>'+
-      '<p class="meta">Email all organisations or members — e.g. to tell them a policy or legal document changed. Edit the customisable "Policy / legal document update" template below to change the default wording.</p>'+
+      '<p class="meta">Email all organisations or members, e.g. to tell them a policy or legal document changed. Edit the customisable "Policy / legal document update" template below to change the default wording.</p>'+
       '<div class="field"><label>Subject</label><input id="et-sub-broadcast" style="width:100%" value="'+attr(pu.subject)+'"></div>'+
       '<div class="field"><label>Message</label>'+bcToolbar+'<div id="et-html-broadcast" contenteditable="true" class="wysiwyg">'+pu.html+'</div></div>'+
       '<div class="lim" style="margin-top:8px">Send to: <select id="bc-aud"><option value="orgs">Organisations (their contact email)</option><option value="members">All members</option><option value="all">Everyone</option></select>'+
       '<button class="ghost" onclick="etPreview(\'broadcast\')">Preview</button><button class="ghost" onclick="bcSend(true)">Send test to me</button><button class="go" onclick="bcSend(false)">Send to all</button></div>'+
       '<div class="meta" id="bc-res" style="margin-top:6px"></div></div>';
-    document.getElementById('emails').innerHTML=broadcast+'<div class="card"><h3 style="margin:0 0 4px;font:600 16px Space Grotesk">Email templates</h3><p class="meta">Every lifecycle email the platform sends. Click one to edit. Format visually, add images, and preview — no HTML needed. Reset restores the built-in default.</p></div>'+cards;
+    document.getElementById('emails').innerHTML=broadcast+'<div class="card"><h3 style="margin:0 0 4px;font:600 16px Space Grotesk">Email templates</h3><p class="meta">Every lifecycle email the platform sends. Click one to edit. Format visually, add images, and preview, no HTML needed. Reset restores the built-in default.</p></div>'+cards;
   });
 }
 window.bcSend=function(test){
@@ -617,6 +632,7 @@ function loadDesign(){
     '<button class="tab" data-d="/acceptable-use">Acceptable use</button>'+
     '<button class="tab" data-d="/dpa">DPA</button>'+
     '<button class="tab" data-d="/legal">Legal index</button>'+
+    '<button class="tab" data-d="legalver">Legal versions</button>'+
     '</div><div id="dpane"></div></div>';
   document.querySelectorAll('#dtabs .tab').forEach(function(b){b.onclick=function(){document.querySelectorAll('#dtabs .tab').forEach(function(x){x.classList.remove('on')});b.classList.add('on');openDesign(b.dataset.d);};});
   openDesign('menu');
@@ -625,6 +641,7 @@ function openDesign(d){
   var pane=document.getElementById('dpane');
   if(d==='menu'){ fetch('/api/nav').then(function(r){return r.json();}).then(function(items){ navItems=items.slice(); pane.innerHTML='<div id="nav-editor"></div>'; renderNav(); }); return; }
   if(d==='team'){ fetch('/api/team').then(function(r){return r.json();}).then(function(t){ teamData=t; pane.innerHTML='<div id="team-editor"></div>'; renderTeamEditor(); }); return; }
+  if(d==='legalver'){ renderLegalVersions(); return; }
   // Load the page in edit mode so its in-place visual editor (Edit button) appears.
   var src = d + (d.indexOf('?')<0?'?edit=1':'&edit=1');
   pane.innerHTML='<p class="meta" style="margin:0 0 8px">This page is editable here. Click <b>Edit page</b> (bottom-right of the preview), make changes, then Save and publish.</p><iframe src="'+src+'" style="width:100%;height:72vh;border:1px solid var(--line);border-radius:12px;background:#fff"></iframe>';
@@ -659,16 +676,40 @@ function renderTeamEditor(){
       '<div class="field" style="margin:8px 0 0"><label class="meta">Short description</label><textarea class="tm-desc" rows="2" style="width:100%">'+esc(m.description)+'</textarea></div>'+
       '<div class="lim"><button class="ghost" onclick="teamMove('+i+',-1)">Up</button><button class="ghost" onclick="teamMove('+i+',1)">Down</button><button class="no" onclick="teamDel('+i+')">Remove</button></div></div>';
   }).join('');
-  document.getElementById('team-editor').innerHTML='<h3 style="margin:0 0 4px;font:600 16px Space Grotesk">Team — "the people behind it"</h3>'+
+  document.getElementById('team-editor').innerHTML='<h3 style="margin:0 0 4px;font:600 16px Space Grotesk">Team, "the people behind it"</h3>'+
     '<p class="meta">Shown on the About page. Add people with a photo and description, and pick a layout style.</p>'+
     '<div class="field"><label>Section heading</label><input id="tm-head" style="width:100%" value="'+attr(teamData.heading)+'"></div>'+
     '<div class="field"><label>Layout style</label>'+styleSel+'</div>'+
     '<div id="tm-list" style="margin-top:10px">'+rows+'</div>'+
-    '<div class="lim"><button class="ghost" onclick="teamAdd()">Add person</button><button class="go" onclick="teamSave()">Save team</button><a class="ghost" href="/about" target="_blank" style="text-decoration:none">Preview ↗</a><span class="err" id="tm-msg" style="margin:0"></span></div>';
+    '<div class="lim"><button class="ghost" onclick="teamAdd()">Add person</button><button class="go" onclick="teamSave()">Save team</button><a class="ghost" href="/about" target="_blank" style="text-decoration:none">Preview</a><span class="err" id="tm-msg" style="margin:0"></span></div>';
 }
 window.teamAdd=function(){ syncTeam(); teamData.members.push({name:'New person',role:'',description:'',imageUrl:''}); renderTeamEditor(); };
 window.teamDel=function(i){ syncTeam(); teamData.members.splice(i,1); renderTeamEditor(); };
 window.teamMove=function(i,d){ syncTeam(); var j=i+d; if(j<0||j>=teamData.members.length)return; var t=teamData.members[i];teamData.members[i]=teamData.members[j];teamData.members[j]=t; renderTeamEditor(); };
+// ---- legal document version history ----
+var LEGAL_DOCS=[['privacy','Privacy Policy'],['terms','Terms of Service'],['cookies','Cookie Policy'],['acceptable-use','Acceptable Use'],['dpa','DPA'],['legal','Legal index']];
+var legalVerKey='privacy';
+function renderLegalVersions(){
+  var pane=document.getElementById('dpane');
+  var sel='<select id="lv-doc">'+LEGAL_DOCS.map(function(o){return '<option value="'+o[0]+'"'+(legalVerKey===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>';
+  pane.innerHTML='<h3 style="margin:0 0 4px;font:600 16px Space Grotesk">Legal document versions</h3><p class="meta">Every time you edit a legal document, a dated version is saved here. You can restore an old version (which publishes it) or delete versions you no longer need.</p><div class="lim" style="margin-bottom:10px">Document: '+sel+'</div><div id="lv-list"></div>';
+  document.getElementById('lv-doc').onchange=function(){ legalVerKey=this.value; loadLegalVersions(); };
+  loadLegalVersions();
+}
+function loadLegalVersions(){
+  fetch('/api/console/legal-versions/'+legalVerKey,{headers:H()}).then(function(r){return r.json();}).then(function(vers){
+    var box=document.getElementById('lv-list'); if(!box) return;
+    if(!vers.length){ box.innerHTML='<p class="meta">No saved versions yet. Edit this document (Design tab) to create the first version.</p>'; return; }
+    box.innerHTML=vers.slice().reverse().map(function(v){
+      return '<div class="row" style="padding:10px 0;border-bottom:1px solid var(--line)"><div><b>Version '+esc(v.version)+'</b> <span class="meta">published '+esc(new Date(v.date).toLocaleString())+(v.by?' by '+esc(v.by):'')+(v.restoredFrom?' (restored from '+esc(v.restoredFrom)+')':'')+'</span></div><div class="lim"><button class="ghost" onclick="lvPreview(\''+v.num+'\')">Preview</button><button class="go" onclick="lvRestore(\''+v.num+'\',\''+esc(v.version)+'\')">Restore</button><button class="no" onclick="lvDelete(\''+v.num+'\',\''+esc(v.version)+'\')">Delete</button></div></div>';
+    }).join('');
+    window._legalVers=vers;
+  });
+}
+window.lvPreview=function(num){ var v=(window._legalVers||[]).find(function(x){return String(x.num)===String(num);}); if(v) showEmailPreview('Version '+v.version, v.html); };
+window.lvRestore=function(num,ver){ appConfirm({title:'Restore '+ver,message:'Restore and publish version '+ver+'? It becomes the live document (and is saved as a new version).',confirmText:'Restore'}).then(function(ok){ if(!ok)return; fetch('/api/console/legal-versions/'+legalVerKey+'/'+num+'/restore',{method:'POST',headers:H()}).then(function(){ appToast('Version '+ver+' restored.','ok'); loadLegalVersions(); }); }); };
+window.lvDelete=function(num,ver){ appConfirm({title:'Delete '+ver,message:'Delete version '+ver+' from history? This does not change the live document.',confirmText:'Delete',danger:true}).then(function(ok){ if(!ok)return; fetch('/api/console/legal-versions/'+legalVerKey+'/'+num,{method:'DELETE',headers:H()}).then(loadLegalVersions); }); };
+
 window.teamSave=function(){ syncTeam(); var msg=document.getElementById('tm-msg');
   fetch('/api/console/team',{method:'PUT',headers:H(),body:JSON.stringify(teamData)}).then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error);return d;});})
     .then(function(){ msg.style.color='var(--accent)'; msg.textContent='Saved.'; }).catch(function(e){ msg.style.color='#C0392B'; msg.textContent=e.message; }); };

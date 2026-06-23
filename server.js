@@ -123,13 +123,13 @@ const EMAIL_TEMPLATES = {
     html: '<p>Hello,</p><p>We have updated our legal documents (for example our <a href="https://enjeeoh.com/privacy">Privacy Policy</a> and <a href="https://enjeeoh.com/terms">Terms</a>).</p><p>Please take a moment to review the changes. By continuing to use Enjeeoh you agree to the updated terms.</p><p>Thank you,<br>The Enjeeoh team</p>'
   },
   demoRequestAck: {
-    label: 'Demo request — confirmation to the requester',
+    label: 'Demo request, confirmation to the requester',
     vars: ['name'],
     subject: 'Thanks for your interest in Enjeeoh',
     html: '<p>Hi {{name}},</p><p>Thank you for requesting a demo of Enjeeoh. We have received your request and a member of our team will be in touch shortly to arrange a time that suits you.</p><p>In the meantime, feel free to explore the platform.</p><p>Warm regards,<br>The Enjeeoh team</p>'
   },
   demoRequestNotify: {
-    label: 'Demo request — notification to the team',
+    label: 'Demo request, notification to the team',
     vars: ['name', 'email', 'org', 'message'],
     subject: 'New demo request: {{org}}',
     html: '<p>A new demo has been requested.</p><ul><li><b>Name:</b> {{name}}</li><li><b>Email:</b> {{email}}</li><li><b>Organisation:</b> {{org}}</li><li><b>Message:</b> {{message}}</li></ul>'
@@ -1253,10 +1253,10 @@ app.post('/api/console/org/:id/members/bulk', requireSuperAdmin, async (req, res
     const email = String(row.email || '').trim().toLowerCase();
     const name = (String(row.name || '').trim()) || (email.split('@')[0] || '');
     const role = ['admin', 'manager', 'member'].includes(row.role) ? row.role : 'member';
-    if (!email || !email.includes('@')) { errors.push((email || '(blank)') + ' — invalid email'); continue; }
-    if (await store.getMemberByEmail(email)) { skipped.push(email + ' — already a member'); continue; }
-    if (orgCap && (await store.countMembers(a.id)) >= orgCap) { errors.push(email + ' — org is at its member limit'); continue; }
-    if (limits.globalMax > 0 && (await store.countAllMembers()) >= limits.globalMax) { errors.push(email + ' — platform is at capacity'); break; }
+    if (!email || !email.includes('@')) { errors.push((email || '(blank)') + ', invalid email'); continue; }
+    if (await store.getMemberByEmail(email)) { skipped.push(email + ', already a member'); continue; }
+    if (orgCap && (await store.countMembers(a.id)) >= orgCap) { errors.push(email + ', org is at its member limit'); continue; }
+    if (limits.globalMax > 0 && (await store.countAllMembers()) >= limits.globalMax) { errors.push(email + ', platform is at capacity'); break; }
     const inviteToken = crypto.randomBytes(16).toString('hex');
     await store.createMember(a.id, { name, email, passwordHash: '', role, status: 'invited', inviteToken, slug: await uniqueMemberSlug(a.id, name) });
     sendTemplate('memberInvite', email, { orgName: a.name, inviterName: req.console.email, inviteUrl: `${baseUrl(req)}/join?token=${inviteToken}` });
@@ -1288,14 +1288,14 @@ app.post('/api/console/org/:id/unarchive', requireSuperAdmin, async (req, res) =
   await audit(req, 'org.unarchived', { accountId: req.params.id, accountName: a?.name });
   res.json({ ok: true });
 });
-// Soft delete: mark as deleted (blocks all access, recoverable) — shown in the
+// Soft delete: mark as deleted (blocks all access, recoverable), shown in the
 // Deleted tab. Data is kept until a permanent delete.
 app.post('/api/console/org/:id/soft-delete', requireSuperAdmin, async (req, res) => {
   const a = await store.updateAccount(req.params.id, { deleted: true });
   await audit(req, 'org.soft-deleted', { accountId: req.params.id, accountName: a?.name, text: 'moved to Deleted (recoverable)' });
   res.json({ ok: true });
 });
-// Reactivate a locked or soft-deleted org — clears deleted/suspended/archived.
+// Reactivate a locked or soft-deleted org, clears deleted/suspended/archived.
 app.post('/api/console/org/:id/reactivate', requireSuperAdmin, async (req, res) => {
   const a = await store.updateAccount(req.params.id, { deleted: false, suspended: false, archived: false });
   await audit(req, 'org.reactivated', { accountId: req.params.id, accountName: a?.name, text: 'reactivated' });
@@ -1388,6 +1388,8 @@ app.get('/api/nav', async (_req, res) => { const n = await store.getPage('nav');
 // HTML overrides keyed by the page's data-edit fields. Public read, content write.
 // Legal documents are edited as a single rich "body" field, so they get a larger cap.
 const EDITABLE_PAGES = new Set(['about', 'demo', 'privacy', 'terms', 'cookies', 'acceptable-use', 'dpa', 'legal']);
+// Legal documents are version-controlled: each save keeps a numbered, dated snapshot.
+const LEGAL_KEYS = new Set(['privacy', 'terms', 'cookies', 'acceptable-use', 'dpa', 'legal']);
 app.get('/api/page/:key', async (req, res) => {
   if (!EDITABLE_PAGES.has(req.params.key)) return res.status(404).json({ error: 'Unknown page.' });
   res.json((await store.getPage('content:' + req.params.key)) || {});
@@ -1398,7 +1400,42 @@ app.put('/api/page/:key', requirePerm('content'), async (req, res) => {
   const clean = {};
   for (const [k, v] of Object.entries(fields)) if (typeof v === 'string') clean[k] = v.slice(0, 100000);
   await store.setPage('content:' + req.params.key, clean);
+  // Snapshot a version for legal documents.
+  if (LEGAL_KEYS.has(req.params.key)) {
+    const vkey = 'legalver:' + req.params.key;
+    const vers = (await store.getPage(vkey)) || [];
+    const num = (vers.length ? vers[vers.length - 1].num : 0) + 1;
+    vers.push({ num, version: '1.' + num, html: clean.body || '', date: new Date().toISOString(), by: req.console?.email || '' });
+    while (vers.length > 50) vers.shift();
+    await store.setPage(vkey, vers);
+  }
   await audit(req, 'page.updated', { text: req.params.key });
+  res.json({ ok: true });
+});
+
+// ---- Legal document version history ----
+app.get('/api/console/legal-versions/:key', requirePerm('content'), async (req, res) => {
+  if (!LEGAL_KEYS.has(req.params.key)) return res.status(404).json({ error: 'Unknown document.' });
+  res.json((await store.getPage('legalver:' + req.params.key)) || []);
+});
+app.post('/api/console/legal-versions/:key/:num/restore', requirePerm('content'), async (req, res) => {
+  if (!LEGAL_KEYS.has(req.params.key)) return res.status(404).json({ error: 'Unknown document.' });
+  const vers = (await store.getPage('legalver:' + req.params.key)) || [];
+  const v = vers.find(x => String(x.num) === String(req.params.num));
+  if (!v) return res.status(404).json({ error: 'Version not found.' });
+  // Publishing a restore also creates a new version (so history stays linear).
+  await store.setPage('content:' + req.params.key, { body: v.html });
+  const num = (vers.length ? vers[vers.length - 1].num : 0) + 1;
+  vers.push({ num, version: '1.' + num, html: v.html, date: new Date().toISOString(), by: req.console?.email || '', restoredFrom: v.version });
+  await store.setPage('legalver:' + req.params.key, vers);
+  await audit(req, 'legal.restored', { text: req.params.key + ' -> ' + v.version });
+  res.json({ ok: true });
+});
+app.delete('/api/console/legal-versions/:key/:num', requirePerm('content'), async (req, res) => {
+  if (!LEGAL_KEYS.has(req.params.key)) return res.status(404).json({ error: 'Unknown document.' });
+  const vers = ((await store.getPage('legalver:' + req.params.key)) || []).filter(x => String(x.num) !== String(req.params.num));
+  await store.setPage('legalver:' + req.params.key, vers);
+  await audit(req, 'legal.version-deleted', { text: req.params.key + ' v' + req.params.num });
   res.json({ ok: true });
 });
 app.put('/api/console/nav', requirePerm('content'), async (req, res) => {
@@ -1439,12 +1476,12 @@ app.post('/api/console/test-email', requireSuperAdmin, async (req, res) => {
   let hint;
   if (process.env.RESEND_API_KEY) {
     hint = freeDomain
-      ? ` You cannot send from ${fromDomain} via Resend — you do not own it. Verify your own domain at resend.com/domains and set SMTP_FROM to an address on it (e.g. noreply@yourdomain.org), or use onboarding@resend.dev to email only your own account.`
+      ? ` You cannot send from ${fromDomain} via Resend, you do not own it. Verify your own domain at resend.com/domains and set SMTP_FROM to an address on it (e.g. noreply@yourdomain.org), or use onboarding@resend.dev to email only your own account.`
       : ' The "from" address (SMTP_FROM) must be on a domain you have verified at resend.com/domains.';
   } else if (process.env.BREVO_API_KEY) {
     hint = ' The "from" address must be a verified sender on a domain authenticated in Brevo.';
   } else if (isTimeout) {
-    hint = ' Could not connect — your host (e.g. Railway) is blocking the SMTP port. Switch to Resend: set RESEND_API_KEY and SMTP_FROM (a verified-domain address), and remove GMAIL_USER / GMAIL_APP_PASSWORD / SMTP_* vars.';
+    hint = ' Could not connect, your host (e.g. Railway) is blocking the SMTP port. Switch to Resend: set RESEND_API_KEY and SMTP_FROM (a verified-domain address), and remove GMAIL_USER / GMAIL_APP_PASSWORD / SMTP_* vars.';
   } else {
     hint = ' Check your SMTP username/password (for Gmail this must be an App Password, not your normal password).';
   }
@@ -1555,7 +1592,7 @@ app.put('/api/console/team', requirePerm('content'), async (req, res) => {
 });
 
 // ================= BROADCAST (announcements / policy updates) =================
-// Send a one-off email to all organisations or all members — e.g. to notify users
+// Send a one-off email to all organisations or all members, e.g. to notify users
 // that a policy or legal document changed.
 app.post('/api/console/broadcast', requireSuperAdmin, async (req, res) => {
   if (!emailEnabled()) return res.status(400).json({ error: 'Email is not configured.' });
@@ -1586,7 +1623,7 @@ app.post('/api/console/broadcast', requireSuperAdmin, async (req, res) => {
     if (r.sent) sent++; else failed++;
     await new Promise(r => setTimeout(r, 80));
   }
-  await audit(req, 'broadcast.sent', { actor: req.console.email, text: `${subject} → ${audience} (${sent} sent, ${failed} failed${test ? ', TEST' : ''})` });
+  await audit(req, 'broadcast.sent', { actor: req.console.email, text: `${subject} to ${audience} (${sent} sent, ${failed} failed${test ? ', TEST' : ''})` });
   res.json({ ok: true, sent, failed, total: recipients.length, test });
 });
 
@@ -1687,7 +1724,7 @@ async function runBookingReminders() {
         const a = await store.getAccountById(b.accountId);
         const when = a ? new Intl.DateTimeFormat('en-AU', { timeZone: a.timezone, weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date(b.start)) : b.start;
         const manageLink = b.manageToken ? `${PUBLIC_URL}/manage/${b.id}/${b.manageToken}` : '';
-        if (emailEnabled()) sendEmail({ to: b.email, subject: `Reminder: ${b.title} ${w.label}`, html: `<p>Hi ${b.name || 'there'},</p><p>A reminder for your <b>${b.title}</b> with ${b.memberName} ${w.label} — <b>${when}</b>.</p><p>${b.locationText || ''}</p>${manageLink ? `<p>Need to change it? <a href="${manageLink}">Reschedule or cancel</a>.</p>` : ''}` });
+        if (emailEnabled()) sendEmail({ to: b.email, subject: `Reminder: ${b.title} ${w.label}`, html: `<p>Hi ${b.name || 'there'},</p><p>A reminder for your <b>${b.title}</b> with ${b.memberName} ${w.label}, <b>${when}</b>.</p><p>${b.locationText || ''}</p>${manageLink ? `<p>Need to change it? <a href="${manageLink}">Reschedule or cancel</a>.</p>` : ''}` });
         if (smsEnabled() && b.phone) sendSms({ to: b.phone, body: `Reminder: ${b.title} ${w.label} (${when}). ${b.locationText || ''}`.slice(0, 320) });
         await store.updateBooking(b.id, { [w.flag]: true });
       }
@@ -1700,23 +1737,23 @@ setInterval(runBookingReminders, 60 * 60 * 1000).unref?.();
 // Warn loudly if the deployment is running on insecure defaults.
 function securityPreflight() {
   const warns = [];
-  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'change-me-in-production') warns.push('JWT_SECRET is unset or default — set a long random value.');
-  if ((process.env.SUPERADMIN_PASSWORD || process.env.REVIEWER_PASSWORD || '').length < 12) warns.push('Super admin password is short or unset — use 12+ characters.');
-  if (process.env.NODE_ENV === 'production' && !process.env.MONGODB_URI) warns.push('Running in production on the JSON file store — set MONGODB_URI.');
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'change-me-in-production') warns.push('JWT_SECRET is unset or default, set a long random value.');
+  if ((process.env.SUPERADMIN_PASSWORD || process.env.REVIEWER_PASSWORD || '').length < 12) warns.push('Super admin password is short or unset, use 12+ characters.');
+  if (process.env.NODE_ENV === 'production' && !process.env.MONGODB_URI) warns.push('Running in production on the JSON file store, set MONGODB_URI.');
   // Catch the most common email mistake: Resend/Brevo cannot send "from" a free
-  // mailbox domain you do not own — it will reject every message.
+  // mailbox domain you do not own, it will reject every message.
   const fromAddr = emailFrom();
   const fromDomain = (fromAddr.split('@')[1] || '').toLowerCase();
-  // Warn when several providers are set — only the highest-priority one is used.
+  // Warn when several providers are set, only the highest-priority one is used.
   const providers = [];
   if (process.env.RESEND_API_KEY) providers.push('Resend');
   if (process.env.BREVO_API_KEY) providers.push('Brevo');
   if (process.env.SMTP_HOST || (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD)) providers.push(process.env.SMTP_HOST ? 'SMTP' : 'Gmail');
   if (providers.length > 1) {
-    warns.push(`Multiple email providers configured (${providers.join(', ')}). Only ${emailMethod()} is used — order is Resend > Brevo > SMTP/Gmail. To use Gmail, REMOVE RESEND_API_KEY and BREVO_API_KEY.`);
+    warns.push(`Multiple email providers configured (${providers.join(', ')}). Only ${emailMethod()} is used, order is Resend > Brevo > SMTP/Gmail. To use Gmail, REMOVE RESEND_API_KEY and BREVO_API_KEY.`);
   }
   if ((process.env.RESEND_API_KEY || process.env.BREVO_API_KEY) && FREE_EMAIL_DOMAINS.has(fromDomain)) {
-    warns.push(`Email will FAIL: ${emailMethod()} cannot send from ${fromDomain} (you do not own it). Either (a) verify your own domain and set SMTP_FROM=you@yourdomain, or (b) use Gmail instead — remove RESEND_API_KEY/BREVO_API_KEY and set GMAIL_USER + GMAIL_APP_PASSWORD.`);
+    warns.push(`Email will FAIL: ${emailMethod()} cannot send from ${fromDomain} (you do not own it). Either (a) verify your own domain and set SMTP_FROM=you@yourdomain, or (b) use Gmail instead, remove RESEND_API_KEY/BREVO_API_KEY and set GMAIL_USER + GMAIL_APP_PASSWORD.`);
   }
   if (warns.length) console.warn('\n  STARTUP WARNINGS:\n' + warns.map(w => '   - ' + w).join('\n'));
 }

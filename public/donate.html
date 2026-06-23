@@ -176,7 +176,7 @@ function render(){
   document.getElementById('editBtn').style.display=EDIT_MODE?'block':'none';
 }
 
-// reviewer edit — only available in console edit mode (?edit=1)
+// reviewer edit, only available in console edit mode (?edit=1)
 var modal=document.getElementById('modal');
 document.getElementById('editBtn').onclick=function(){modal.classList.add('show');gateEdit();};
 document.getElementById('close').onclick=function(){modal.classList.remove('show');};

@@ -11,7 +11,7 @@
   var loggedIn = false; // resolved from the server (httpOnly cookie), not readable JS
   // The editing bar only appears when the page is opened in edit mode (?edit=1),
   // which the console does inside its preview iframe. On the public site there is
-  // no floating button — but saved content is still applied below.
+  // no floating button, but saved content is still applied below.
   var EDIT_MODE = new URLSearchParams(location.search).get('edit') === '1';
   function getCsrf() { var m = document.cookie.match(/(?:^|; )csrf=([^;]+)/); return m ? decodeURIComponent(m[1]) : ''; }
   function nodes() { return document.querySelectorAll('[data-edit]'); }

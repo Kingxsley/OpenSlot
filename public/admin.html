@@ -117,7 +117,7 @@
         <div id="links"></div>
       </div>
       <div class="panel">
-        <h2>Your profile <span class="sub" style="font-weight:400">— shown when you appear in a service</span></h2>
+        <h2>Your profile <span class="sub" style="font-weight:400">- shown when you appear in a service</span></h2>
         <div class="row">
           <div><label>Name</label><input id="p-name"></div>
           <div><label>Title</label><input id="p-title" placeholder="e.g. Senior Coach"></div>
@@ -126,7 +126,7 @@
         <input id="p-image" placeholder="https://…">
         <label>Short bio</label>
         <textarea id="p-bio" rows="2" placeholder="A sentence about you for visitors." style="width:100%"></textarea>
-        <label>Your timezone <span class="sub" style="font-weight:400">— your availability is set in this zone; visitors see times in theirs</span></label>
+        <label>Your timezone <span class="sub" style="font-weight:400">- your availability is set in this zone; visitors see times in theirs</span></label>
         <input id="p-tz" placeholder="e.g. Australia/Melbourne"> <button class="ghost sm" type="button" id="p-tz-detect">Use my current timezone</button>
         <div style="margin-top:10px;display:flex;align-items:center;gap:12px"><button id="p-save">Save profile</button> <span class="ok hidden" id="p-ok">Saved</span> <img id="p-preview" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;display:none"></div>
       </div>
@@ -181,7 +181,7 @@
     <div id="tab-org" class="hidden">
       <div class="panel">
         <h2>Bookings report</h2>
-        <p class="sub" style="margin-top:0">Every booking for your organisation — held, upcoming, cancelled or rescheduled, and who acted.</p>
+        <p class="sub" style="margin-top:0">Every booking for your organisation, held, upcoming, cancelled or rescheduled, and who acted.</p>
         <div id="report-summary" class="row" style="gap:10px"></div>
         <div class="lim" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0">
           <select id="report-filter"><option value="">All</option><option value="upcoming">Upcoming</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="rescheduled">Rescheduled</option></select>
@@ -190,6 +190,7 @@
           <button class="ghost sm" id="report-refresh">Refresh</button>
         </div>
         <div style="overflow-x:auto"><table id="report-table" style="width:100%;border-collapse:collapse;font-size:13px"></table></div>
+        <div id="report-pager" style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px;flex-wrap:wrap"></div>
       </div>
       <div class="panel">
         <h2>Organisation settings</h2>
@@ -207,7 +208,7 @@
       </div>
 
       <div class="panel">
-        <h2>Booking page wording <span class="sub" style="font-weight:400">— customise your public page, no code</span></h2>
+        <h2>Booking page wording <span class="sub" style="font-weight:400">- customise your public page, no code</span></h2>
         <p class="sub" style="margin-top:0">Leave any field blank to use the default. These appear on your public booking page.</p>
         <label>Welcome message <span class="sub" style="font-weight:400">(shown at the top)</span></label>
         <textarea id="bp-welcome" rows="2" placeholder="Welcome! Book a free session with our team below." style="width:100%"></textarea>
@@ -227,7 +228,7 @@
         </div>
         <label>Confirmation note <span class="sub" style="font-weight:400">(extra text on the “booked” screen)</span></label>
         <textarea id="bp-thankYouNote" rows="2" placeholder="We'll email you a reminder. Looking forward to seeing you!" style="width:100%"></textarea>
-        <div style="margin-top:10px"><button id="bp-save">Save booking page</button> <span class="ok hidden" id="bp-ok">Saved</span> <a id="bp-view" href="#" target="_blank" class="ghost sm" style="text-decoration:none">Preview ↗</a></div>
+        <div style="margin-top:10px"><button id="bp-save">Save booking page</button> <span class="ok hidden" id="bp-ok">Saved</span> <a id="bp-view" href="#" target="_blank" class="ghost sm" style="text-decoration:none">Preview</a></div>
       </div>
 
       <div class="panel">
@@ -253,8 +254,8 @@
       </div>
 
       <div class="panel">
-        <h2>Services <span class="sub" style="font-weight:400">— bookable by the public, staffed by your team</span></h2>
-        <p class="sub" style="margin-top:0">Create a service (e.g. Coaching, Mentoring) and assign the people who provide it. Visitors pick the service, see everyone's combined availability, and book a time — Enjeeoh assigns an available person or lets the visitor choose.</p>
+        <h2>Services <span class="sub" style="font-weight:400">- bookable by the public, staffed by your team</span></h2>
+        <p class="sub" style="margin-top:0">Create a service (e.g. Coaching, Mentoring) and assign the people who provide it. Visitors pick the service, see everyone's combined availability, and book a time, Enjeeoh assigns an available person or lets the visitor choose.</p>
         <div id="services"></div>
         <div style="border-top:1px dashed var(--line);margin-top:14px;padding-top:16px">
           <h3 id="svc-form-title" style="margin:0 0 10px;font-size:15px">Add a service</h3>
@@ -284,7 +285,7 @@
           </div>
           <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:500"><input type="checkbox" id="svc-showteam" checked style="width:auto"> Show the team list on the booking page</label>
           <p class="sub" style="margin:2px 0 0">Seats = 1 is a private 1:1 session. More than 1 makes it a group session (workshop) that several people can join at the same time.</p>
-          <label style="margin-top:12px">Intake questions <span class="sub" style="font-weight:400">— asked when someone books</span></label>
+          <label style="margin-top:12px">Intake questions <span class="sub" style="font-weight:400">- asked when someone books</span></label>
           <div id="svc-intake"></div>
           <button type="button" class="ghost sm" id="svc-addq" style="margin-top:6px">Add a question</button>
           <label style="margin-top:12px">Who provides this service?</label>
@@ -493,11 +494,11 @@ function render(){
 let reportData=null;
 async function loadReport(){ try{ reportData=await api('/api/org/report'); renderReport(); }catch(e){} }
 function reportFmt(iso,tz){ return new Date(iso).toLocaleString([],{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit',timeZone:tz||'UTC'}); }
-function renderReport(){
-  if(!reportData) return; const s=reportData.summary, tz=reportData.timezone, now=Date.now();
-  document.getElementById('report-summary').innerHTML=[['Total',s.total],['Upcoming',s.upcoming],['Completed',s.completed],['Cancelled',s.cancelled],['Rescheduled',s.rescheduled]].map(x=>`<div class="item" style="flex:1;min-width:88px;text-align:center;display:block"><div style="font:700 20px 'Space Grotesk'">${x[1]}</div><div class="sub" style="margin:0">${x[0]}</div></div>`).join('');
+let reportPage=1; const reportPageSize=25;
+function reportFilteredRows(){
+  if(!reportData) return []; const now=Date.now();
   const filter=document.getElementById('report-filter').value, q=document.getElementById('report-q').value.toLowerCase();
-  const rows=reportData.bookings.filter(b=>{
+  return reportData.bookings.filter(b=>{
     const future=new Date(b.start).getTime()>now;
     if(filter==='cancelled'&&b.status!=='cancelled')return false;
     if(filter==='upcoming'&&!(b.status!=='cancelled'&&future))return false;
@@ -505,24 +506,34 @@ function renderReport(){
     if(filter==='rescheduled'&&!(b.rescheduleCount>0))return false;
     return !q||[b.service,b.member,b.bookerName,b.bookerEmail].some(v=>(v||'').toLowerCase().includes(q));
   });
-  const body=rows.map(b=>{
+}
+function renderReport(){
+  if(!reportData) return; const s=reportData.summary, tz=reportData.timezone, now=Date.now();
+  document.getElementById('report-summary').innerHTML=[['Total',s.total],['Upcoming',s.upcoming],['Completed',s.completed],['Cancelled',s.cancelled],['Rescheduled',s.rescheduled]].map(x=>`<div class="item" style="flex:1;min-width:88px;text-align:center;display:block"><div style="font:700 20px 'Space Grotesk'">${x[1]}</div><div class="sub" style="margin:0">${x[0]}</div></div>`).join('');
+  const rows=reportFilteredRows();
+  const pages=Math.max(1,Math.ceil(rows.length/reportPageSize)); if(reportPage>pages)reportPage=pages;
+  const pageRows=rows.slice((reportPage-1)*reportPageSize, reportPage*reportPageSize);
+  const body=pageRows.map(b=>{
     const future=new Date(b.start).getTime()>now;
     const status=b.status==='cancelled'?'<span style="color:#C0392B">Cancelled</span>':(future?'Upcoming':'Completed');
     let notes='';
-    if(b.cancelledBy) notes='Cancelled by '+esc(b.cancelledBy)+(b.cancelNote?' — '+esc(b.cancelNote):'');
-    else if(b.rescheduleCount>0) notes='Rescheduled '+b.rescheduleCount+'× (last by '+esc(b.rescheduledBy||'?')+')';
+    if(b.cancelledBy) notes='Cancelled by '+esc(b.cancelledBy)+(b.cancelNote?', '+esc(b.cancelNote):'');
+    else if(b.rescheduleCount>0) notes='Rescheduled '+b.rescheduleCount+'x (last by '+esc(b.rescheduledBy||'?')+')';
     return `<tr><td>${esc(reportFmt(b.start,tz))}</td><td>${esc(b.service)}</td><td>${esc(b.member)}</td><td>${esc(b.bookerName)}<div class="sub" style="margin:0">${esc(b.bookerEmail)}</div></td><td>${status}</td><td class="sub">${notes}</td></tr>`;
   }).join('');
   document.getElementById('report-table').innerHTML='<thead><tr><th>When</th><th>Service</th><th>With</th><th>Booked by</th><th>Status</th><th>Notes</th></tr></thead><tbody>'+(body||'<tr><td colspan="6" class="sub">No bookings yet.</td></tr>')+'</tbody>';
+  const pg=document.getElementById('report-pager'); if(pg) pg.innerHTML=`<span class="sub">${rows.length} bookings, page ${reportPage} of ${pages}</span> <button class="ghost sm" id="rep-prev2" ${reportPage<=1?'disabled':''}>Prev</button> <button class="ghost sm" id="rep-next2" ${reportPage>=pages?'disabled':''}>Next</button>`;
+  if(document.getElementById('rep-prev2'))document.getElementById('rep-prev2').onclick=()=>{if(reportPage>1){reportPage--;renderReport();}};
+  if(document.getElementById('rep-next2'))document.getElementById('rep-next2').onclick=()=>{if(reportPage<pages){reportPage++;renderReport();}};
 }
-document.getElementById('report-filter').onchange=renderReport;
-document.getElementById('report-q').oninput=renderReport;
+document.getElementById('report-filter').onchange=()=>{reportPage=1;renderReport();};
+document.getElementById('report-q').oninput=()=>{reportPage=1;renderReport();};
 document.getElementById('report-refresh').onclick=loadReport;
 document.getElementById('report-export').onclick=()=>{
   if(!reportData)return; const tz=reportData.timezone;
   const q=function(c){return '"'+String(c==null?'':c).replace(/"/g,'""')+'"';};
   const head=['when','service','with','booker_name','booker_email','status','cancelled_by','cancel_note','rescheduled_by','reschedule_count','created'];
-  const lines=[head.map(q).join(',')].concat(reportData.bookings.map(b=>[reportFmt(b.start,tz),b.service,b.member,b.bookerName,b.bookerEmail,b.status,b.cancelledBy,b.cancelNote,b.rescheduledBy,b.rescheduleCount,b.createdAt].map(q).join(',')));
+  const lines=[head.map(q).join(',')].concat(reportFilteredRows().map(b=>[reportFmt(b.start,tz),b.service,b.member,b.bookerName,b.bookerEmail,b.status,b.cancelledBy,b.cancelNote,b.rescheduledBy,b.rescheduleCount,b.createdAt].map(q).join(',')));
   const blob=new Blob([lines.join('\n')],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='enjeeoh-bookings-'+new Date().toISOString().slice(0,10)+'.csv'; document.body.appendChild(a); a.click(); a.remove();
 };
 function renderOrg(){
@@ -562,7 +573,7 @@ const ASSIGNLABEL={choose:'Visitor chooses',auto:'Auto-assign',roundrobin:'Round
 function renderServices(){
   const wrap=document.getElementById('services'); if(!wrap) return; wrap.innerHTML='';
   const services=STATE.services||[];
-  if(!services.length){ wrap.innerHTML='<p class="sub" style="margin:0">No services yet. Add one below — for example "Coaching" with several coaches.</p>'; }
+  if(!services.length){ wrap.innerHTML='<p class="sub" style="margin:0">No services yet. Add one below, for example "Coaching" with several coaches.</p>'; }
   services.forEach(s=>{
     const el=document.createElement('div'); el.className='item';
     const names=(s.coaches||[]).map(c=>esc(c.name)).join(', ')||'no one assigned yet';

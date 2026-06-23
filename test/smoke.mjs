@@ -191,6 +191,17 @@ async function run() {
   ok(team.style === 'flashcard' && team.members[0].name === 'Ada', 'public team reflects the editor');
   ok((await api('/api/console/broadcast', { method: 'POST', token: CO, body: { subject: 'x', html: '<p>x</p>' } })).status === 403, 'broadcast is super-admin only');
 
+  // ---- legal document versioning ----
+  await api('/api/page/privacy', { method: 'PUT', token: CO, body: { fields: { body: '<h1>Privacy v1</h1>' } } });
+  await api('/api/page/privacy', { method: 'PUT', token: CO, body: { fields: { body: '<h1>Privacy v2</h1>' } } });
+  const vers = await api('/api/console/legal-versions/privacy', { token: CO });
+  ok(vers.status === 200 && vers.data.length === 2 && vers.data[1].version === '1.2', 'legal saves are versioned (1.1, 1.2)');
+  ok((await api('/api/console/legal-versions/privacy/1/restore', { method: 'POST', token: CO })).status === 200, 'restore an old legal version');
+  ok((await api('/api/console/legal-versions/privacy', { token: CO })).data.length === 3, 'restore adds a new version entry');
+  ok((await api('/api/page/privacy')).data.body === '<h1>Privacy v1</h1>', 'restored version is now live');
+  ok((await api('/api/console/legal-versions/privacy/2', { method: 'DELETE', token: CO })).status === 200, 'delete a legal version');
+  ok((await api('/api/console/legal-versions/privacy', { token: CO })).data.length === 2, 'deleted version is removed from history');
+
   // ---- reports + timezone + demo + ask-to-reschedule ----
   const rep = await api('/api/org/report', { token: ADMIN });
   ok(rep.status === 200 && rep.data.summary && Array.isArray(rep.data.bookings), 'org bookings report returns summary + rows');

@@ -1,7 +1,7 @@
 // Shared site header + navigation. If the page already has a #nav-links element
 // (the landing/about/demo pages build their own header), this just fills the menu.
-// Otherwise it injects a full sticky header — a clickable "Enjeeoh" logo that
-// returns home, plus the menu — so every page has navigation and a way back home.
+// Otherwise it injects a full sticky header, a clickable "Enjeeoh" logo that
+// returns home, plus the menu, so every page has navigation and a way back home.
 (function () {
   var css = ''
     + '.ej-header{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:16px;'
@@ -27,7 +27,7 @@
 
   function mount() {
     var wrap = document.getElementById('nav-links');
-    // No header on this page → inject one with a home logo.
+    // No header on this page to inject one with a home logo.
     if (!wrap) {
       var header = document.createElement('header'); header.className = 'ej-header';
       header.innerHTML = '<a class="ej-brand" href="/" aria-label="Enjeeoh home">Enjeeoh</a><nav class="nav"><div id="nav-links"></div></nav>';

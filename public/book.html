@@ -98,7 +98,7 @@
       <div class="field"><input id="phone" placeholder="Phone (optional, for reminders)"></div>
       <div class="field"><textarea id="notes" placeholder="Anything you'd like to share? (optional)"></textarea></div>
       <button class="cta" id="confirm">Confirm booking</button>
-      <p style="font-size:12px;opacity:.7;margin:10px 0 0;text-align:center">🔒 Private &amp; secure · no account needed · we don't track you. Your details are used only to manage this booking. <a href="/privacy" target="_blank" style="color:inherit">Privacy</a>.</p>
+      <p style="font-size:12px;opacity:.7;margin:10px 0 0;text-align:center">Private &amp; secure · no account needed · we don't track you. Your details are used only to manage this booking. <a href="/privacy" target="_blank" style="color:inherit">Privacy</a>.</p>
       <div class="err" id="err"></div>
     </div>
     <div class="body" id="step-done" style="display:none">
@@ -128,7 +128,7 @@ function setLabel(sel,key,def){ const el=document.querySelector(sel); if(el) el.
 function initials(n){ return (n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
 function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':s);return d.innerHTML;}
 // Show every time in the visitor's own timezone; coaches' availability is computed
-// in their timezone server-side, so the instants are correct — we just localise them.
+// in their timezone server-side, so the instants are correct, we just localise them.
 const VTZ=(function(){try{return Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';}catch(e){return 'UTC';}})();
 function fmtTime(iso){ return new Date(iso).toLocaleTimeString([],{hour:'numeric',minute:'2-digit',hour12:true,timeZone:VTZ}); }
 function fmtDay(iso){ return new Date(iso).toLocaleDateString([],{weekday:'long',day:'numeric',month:'long',timeZone:VTZ}); }
@@ -247,10 +247,10 @@ function chooseServiceSlot(slot){
   if(mode==='choose' && slot.coaches.length>1){
     document.getElementById('slots').style.display='none';
     const pe=document.getElementById('pick-extra'); pe.innerHTML='';
-    const back=document.createElement('button'); back.className='back'; back.textContent='← Back to times';
+    const back=document.createElement('button'); back.className='back'; back.textContent='Back to times';
     back.onclick=()=>{ document.getElementById('slots').style.display=''; pe.innerHTML=''; };
     pe.appendChild(back);
-    const head=document.createElement('div'); head.className='label'; head.style.marginTop='6px'; head.textContent=fmtTime(slot.start)+' — choose who with:';
+    const head=document.createElement('div'); head.className='label'; head.style.marginTop='6px'; head.textContent=fmtTime(slot.start)+', choose who with:';
     pe.appendChild(head);
     slot.coaches.forEach(c=>{ const d=document.createElement('div'); d.className='pickrow'; d.innerHTML=`${avatar(c.name,c.imageUrl)}<div><h3>${esc(c.name)}</h3><p>${esc(c.title||'Available')}</p></div>`; d.onclick=()=>{ chosenCoach=c; goServiceDetails(slot,c); }; pe.appendChild(d); });
     return;
@@ -303,7 +303,7 @@ document.getElementById('back-types').onclick=()=>{ if(MODE==='service'){ show('
 function startPick(){
   // Show a Back control: to the coaches list (service mode) or meeting types (member mode).
   var bt=document.getElementById('back-types');
-  if(MODE==='service'){ bt.textContent='← Back'; bt.style.display='inline'; }
+  if(MODE==='service'){ bt.textContent='Back'; bt.style.display='inline'; }
   show('pick'); buildDates();
 }
 function loadSlotsFor(iso){ return MODE==='service'? loadServiceSlots(iso) : loadSlots(iso); }

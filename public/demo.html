@@ -34,9 +34,9 @@
 </head>
 <body>
 <div class="wrap">
-  <p class="eyebrow">Free for verified NGOs</p>
-  <h1>See <span class="g">Enjeeoh</span> in action.</h1>
-  <p class="lead">A quick, no-pressure walkthrough tailored to your organisation. Tell us a little about you and we'll arrange a time.</p>
+  <p class="eyebrow" data-edit="eyebrow">Free for verified NGOs</p>
+  <h1 data-edit="head">See <span class="g">Enjeeoh</span> in action.</h1>
+  <p class="lead" data-edit="lead">A quick, no-pressure walkthrough tailored to your organisation. Tell us a little about you and we'll arrange a time.</p>
 
   <div class="feats">
     <div class="feat"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg><h3>Team &amp; service booking</h3><p>One page, many people.</p></div>
@@ -48,7 +48,7 @@
   </div>
 
   <div id="form-view" class="panel">
-    <h2 style="margin:0 0 16px;font:700 20px 'Space Grotesk'">Request a demo</h2>
+    <h2 style="margin:0 0 16px;font:700 20px 'Space Grotesk'" data-edit="formHead">Request a demo</h2>
     <div class="row"><div><label>Your name</label><input id="d-name" placeholder="Contact person"></div><div><label>Email</label><input id="d-email" type="email" placeholder="you@org.org"></div></div>
     <label>Organisation <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
     <input id="d-org" placeholder="Your organisation">
@@ -62,7 +62,7 @@
     <div class="done">
       <div class="check"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></div>
       <h2 style="margin:0 0 8px;font:700 20px 'Space Grotesk'">Request received</h2>
-      <p style="color:var(--muted);margin:0">Thanks — we'll be in touch shortly to arrange a time. Check your inbox for a confirmation.</p>
+      <p style="color:var(--muted);margin:0">Thanks, we'll be in touch shortly to arrange a time. Check your inbox for a confirmation.</p>
     </div>
   </div>
 </div>
@@ -82,5 +82,6 @@ document.getElementById('d-submit').onclick=async()=>{
 };
 </script>
 <script src="/nav.js"></script>
+<script src="/site-edit.js" data-page="demo"></script>
 </body>
 </html>
