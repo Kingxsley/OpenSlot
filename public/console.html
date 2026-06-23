@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Super admin console, Enjeeoh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--accent:#0F9D7A;--ink:#15162A;--muted:#6B7280;--line:#ECEDF4;--bg:#FBFBFE;--soft:#F4F4FA;--card:#FFF}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif}
+  .wrap{max-width:1040px;margin:0 auto;padding:24px 18px 70px}
+  .top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px}
+  h1{font:700 24px 'Space Grotesk';margin:0}
+  .role{font:600 11px Inter;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:20px;padding:5px 11px;margin-left:8px;vertical-align:2px}
+  .ghost{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 14px;font:600 13px Inter;cursor:pointer;color:var(--ink)}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:18px 0}
+  .tab{border:1px solid var(--line);background:var(--card);border-radius:9px;padding:9px 15px;font:600 13px Inter;cursor:pointer;color:var(--muted)}
+  .tab.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:12px}
+  .row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  .badge{font:600 11px Inter;text-transform:uppercase;letter-spacing:.05em;border-radius:20px;padding:4px 10px}
+  .b-pending{background:#FEF3C7;color:#92400E}.b-approved{background:#D1FAE5;color:#065F46}.b-rejected{background:#FEE2E2;color:#991B1B}
+  .b-locked{background:#FEE2E2;color:#991B1B}.b-active{background:#D1FAE5;color:#065F46}.b-invited{background:#E0E7FF;color:#3730A3}
+  .meta{color:var(--muted);font-size:13px;margin:4px 0 0}
+  .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+  button.go{background:var(--accent);color:#fff;border:0;border-radius:9px;padding:8px 14px;font:600 13px Inter;cursor:pointer}
+  button.no{background:#fff;color:#991B1B;border:1px solid #FCA5A5;border-radius:9px;padding:8px 14px;font:600 13px Inter;cursor:pointer}
+  input,select,textarea{border:1px solid var(--line);border-radius:9px;padding:9px 11px;font:400 14px Inter;background:var(--bg);color:var(--ink)}
+  textarea{width:100%;font-family:ui-monospace,monospace;font-size:13px;line-height:1.5}
+  input.note{flex:1;min-width:160px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .toolbar input[type=search]{min-width:180px;flex:1}
+  .toolbar .grow{flex:1}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font:600 11px Inter;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+  th.sortable{cursor:pointer;user-select:none}th.sortable:hover{color:var(--ink)}
+  th .arrow{opacity:.5;font-size:10px}
+  .mono{font:12px ui-monospace,monospace;color:var(--muted)}
+  .login{max-width:380px;margin:80px auto}
+  .login .card{padding:24px} .login label{display:block;font:600 13px Inter;margin:0 0 6px}
+  .login input{width:100%;margin-bottom:12px} .login button{width:100%;background:var(--accent);color:#fff;border:0;border-radius:10px;padding:12px;font:600 14px Inter;cursor:pointer}
+  .err{color:#C0392B;font-size:13px;min-height:16px;margin-top:8px} .hide{display:none}
+  .lim{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+  .lim input{width:90px}
+  .pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px;flex-wrap:wrap}
+  .field{margin:10px 0}.field label{display:block;font:600 13px Inter;margin:0 0 4px}
+  details.acc{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden}
+  details.acc>summary{list-style:none;cursor:pointer;padding:13px 16px;font:600 14px Inter;display:flex;align-items:center;gap:8px;user-select:none}
+  details.acc>summary::-webkit-details-marker{display:none}
+  details.acc>summary::before{content:'▸';color:var(--muted);font-size:12px;transition:transform .15s}
+  details.acc[open]>summary::before{transform:rotate(90deg)}
+  details.acc[open]>summary{border-bottom:1px solid var(--line)}
+  details.acc .acc-body{padding:14px 16px}
+  .wysiwyg{border:1px solid var(--line);border-radius:9px;padding:11px;min-height:120px;background:var(--card);font:400 14px Inter;line-height:1.55}
+  .wysiwyg:focus{outline:2px solid color-mix(in srgb,var(--accent) 40%,transparent);outline-offset:1px}
+  .wysiwyg p{margin:0 0 8px} .wysiwyg h3{margin:0 0 6px;font:600 16px 'Space Grotesk'} .wysiwyg a{color:var(--accent)}
+  @media (max-width:620px){ .row{flex-direction:column} table{font-size:12px} }
+</style>
+</head>
+<body>
+<div id="loginView" class="login hide">
+  <h1>Super admin console</h1>
+  <div class="card" style="margin-top:14px">
+    <label>Email</label><input id="le" type="email">
+    <label>Password</label><input id="lp" type="password">
+    <button id="lbtn">Sign in</button>
+    <div class="err" id="lerr"></div>
+  </div>
+</div>
+
+<div id="appView" class="wrap hide">
+  <div class="top">
+    <h1>Super admin console <span class="role" id="roleBadge"></span></h1>
+    <button class="ghost" id="logout">Log out</button>
+  </div>
+  <div class="tabs">
+    <button class="tab" data-t="apps" data-roles="superadmin,onboarding">Applications</button>
+    <button class="tab" data-t="members" data-roles="superadmin">Members</button>
+    <button class="tab" data-t="logs" data-roles="superadmin,onboarding,content">Activity log</button>
+    <button class="tab" data-t="design" data-roles="superadmin,content">Design</button>
+    <button class="tab" data-t="admins" data-roles="superadmin">Admins</button>
+    <button class="tab" data-t="limits" data-roles="superadmin">Organisations</button>
+    <button class="tab" data-t="emails" data-roles="superadmin">Emails</button>
+    <button class="tab" data-t="security" data-roles="superadmin">Security</button>
+  </div>
+  <div id="apps" class="hide"></div>
+  <div id="members" class="hide"></div>
+  <div id="logs" class="hide"></div>
+  <div id="design" class="hide"></div>
+  <div id="admins" class="hide"></div>
+  <div id="limits" class="hide"></div>
+  <div id="emails" class="hide"></div>
+  <div id="security" class="hide"></div>
+</div>
+
+<script>
+var role='';
+// Session lives in an httpOnly cookie (sent automatically); JS only handles the
+// readable CSRF token, echoed back in a header on every request.
+function getCsrf(){var m=document.cookie.match(/(?:^|; )csrf=([^;]+)/);return m?decodeURIComponent(m[1]):'';}
+function H(){return {'Content-Type':'application/json','X-CSRF-Token':getCsrf()};}
+function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':s);return d.innerHTML;}
+function attr(s){return String(s==null?'':s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+// ---- shared filter / sort / export helpers ----
+function textIncludes(obj, fields, q){ if(!q) return true; q=q.toLowerCase(); return fields.some(function(f){return String(obj[f]==null?'':obj[f]).toLowerCase().indexOf(q)>=0;}); }
+function sortRows(rows, key, dir){ return rows.slice().sort(function(a,b){ var x=a[key], y=b[key];
+  if(typeof x==='number'&&typeof y==='number'){ return dir==='asc'?x-y:y-x; }
+  x=String(x==null?'':x).toLowerCase(); y=String(y==null?'':y).toLowerCase();
+  return dir==='asc'?x.localeCompare(y):y.localeCompare(x); }); }
+function downloadCSV(filename, headers, rows){
+  var q=function(c){return '"'+String(c==null?'':c).replace(/"/g,'""')+'"';};
+  var lines=[headers.map(q).join(',')].concat(rows.map(function(r){return r.map(q).join(',');}));
+  var blob=new Blob([lines.join('\n')],{type:'text/csv'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();a.remove();
+}
+function sortableTh(label, key, state){
+  var on=state.sort===key; var arrow=on?(state.dir==='asc'?'▲':'▼'):'';
+  return '<th class="sortable" data-sort="'+key+'">'+esc(label)+' <span class="arrow">'+arrow+'</span></th>';
+}
+function wireSort(scope, state, rerender){
+  scope.querySelectorAll('th.sortable').forEach(function(th){ th.onclick=function(){ var k=th.dataset.sort;
+    if(state.sort===k){ state.dir=state.dir==='asc'?'desc':'asc'; } else { state.sort=k; state.dir='asc'; } rerender(); }; });
+}
+
+function showLogin(){document.getElementById('loginView').classList.remove('hide');document.getElementById('appView').classList.add('hide');}
+function showApp(){document.getElementById('loginView').classList.add('hide');document.getElementById('appView').classList.remove('hide');
+  document.getElementById('roleBadge').textContent = {superadmin:'Super admin',onboarding:'Onboarding',content:'Content manager'}[role] || 'Platform admin';
+  var tabs=document.querySelectorAll('.tab'), first=null;
+  tabs.forEach(function(t){ var allowed=(t.dataset.roles||'').split(',').indexOf(role)>=0; t.classList.toggle('hide', !allowed); if(allowed && !first) first=t; });
+  if(first){ openTab(first); }
+}
+function openTab(t){
+  document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')});t.classList.add('on');
+  ['apps','members','logs','design','admins','limits','emails','security'].forEach(function(id){document.getElementById(id).classList.add('hide');});
+  var sel=t.dataset.t;document.getElementById(sel).classList.remove('hide');
+  ({apps:loadApps,members:loadMembers,logs:loadLogs,design:loadDesign,admins:loadAdmins,limits:loadLimits,emails:loadEmails,security:loadSecurity}[sel]||function(){})();
+}
+
+document.getElementById('lbtn').onclick=function(){
+  var err=document.getElementById('lerr');err.textContent='';
+  fetch('/api/console/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('le').value.trim(),password:document.getElementById('lp').value})})
+   .then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||'Login failed');return d;});})
+   .then(function(d){role=d.role;showApp();})
+   .catch(function(e){err.textContent=e.message;});
+};
+document.getElementById('logout').onclick=function(){fetch('/api/console/logout',{method:'POST',headers:{'X-CSRF-Token':getCsrf()},credentials:'same-origin'}).catch(function(){}).then(function(){role='';showLogin();});};
+document.querySelectorAll('.tab').forEach(function(t){t.onclick=function(){ openTab(t); };});
+
+// ================= APPLICATIONS =================
+var appsState={raw:[],q:'',status:'',sort:'createdAt',dir:'desc'};
+function loadApps(){
+  fetch('/api/console/applications',{headers:H()}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(list){
+    appsState.raw=list; renderApps();
+  }).catch(function(){showLogin();});
+}
+function appsFiltered(){
+  var rows=appsState.raw.filter(function(a){return (!appsState.status||a.status===appsState.status) && textIncludes(a,['name','email','country','contactName','website','mission','slug'],appsState.q);});
+  return sortRows(rows, appsState.sort, appsState.dir);
+}
+function renderApps(){
+  var el=document.getElementById('apps');
+  var toolbar='<div class="card"><div class="toolbar">'+
+    '<input type="search" id="apps-q" placeholder="Search name, email, country..." value="'+attr(appsState.q)+'">'+
+    '<select id="apps-status"><option value="">All statuses</option>'+['pending','approved','rejected'].map(function(s){return '<option value="'+s+'"'+(appsState.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
+    '<select id="apps-sort">'+[['createdAt','Newest'],['name','Name'],['status','Status'],['memberCount','Members'],['country','Country']].map(function(o){return '<option value="'+o[0]+'"'+(appsState.sort===o[0]?' selected':'')+'>Sort: '+o[1]+'</option>';}).join('')+'</select>'+
+    '<button class="ghost" id="apps-dir">'+(appsState.dir==='asc'?'Asc ▲':'Desc ▼')+'</button>'+
+    '<button class="ghost" id="apps-export">Export CSV</button>'+
+    '</div><div class="meta" id="apps-count"></div></div>';
+  var rows=appsFiltered();
+  document.getElementById('apps-count');
+  var body=!rows.length?'<div class="card">No matching applications.</div>':rows.map(function(a){
+    var cap = a.maxMembers>0 ? a.maxMembers : 'no limit';
+    return '<div class="card"><div class="row"><div><b>'+esc(a.name)+'</b> <span class="badge b-'+a.status+'">'+a.status+'</span>'+
+      (a.suspended?' <span class="badge b-locked">suspended</span>':'')+
+      '<div class="meta">'+esc(a.email)+(a.country?' · '+esc(a.country):'')+' · '+a.memberCount+' members ('+cap+') · applied '+esc(new Date(a.createdAt).toLocaleDateString())+'</div>'+
+      (a.mission?'<div class="meta">'+esc(a.mission)+'</div>':'')+(a.website?'<div class="meta mono">'+esc(a.website)+'</div>':'')+'</div></div>'+
+      '<div class="acts"><input class="note" id="note-'+a.id+'" placeholder="Note (optional)">'+
+      '<button class="go" onclick="decide(\''+a.id+'\',\'approved\')">Approve</button>'+
+      '<button class="no" onclick="decide(\''+a.id+'\',\'rejected\')">Reject</button></div>'+
+      (role==='superadmin'?'<div class="lim">Max members for this org: <input type="number" min="0" id="cap-'+a.id+'" value="'+(a.maxMembers||0)+'"> <button class="ghost" onclick="setOrgCap(\''+a.id+'\')">Save</button> <span class="meta">(0 = no limit)</span></div>':'')+
+      '</div>';
+  }).join('');
+  el.innerHTML=toolbar+body;
+  document.getElementById('apps-count').textContent=rows.length+' of '+appsState.raw.length+' applications';
+  document.getElementById('apps-q').oninput=function(){appsState.q=this.value;renderApps();var i=document.getElementById('apps-q');i.focus();i.setSelectionRange(i.value.length,i.value.length);};
+  document.getElementById('apps-status').onchange=function(){appsState.status=this.value;renderApps();};
+  document.getElementById('apps-sort').onchange=function(){appsState.sort=this.value;renderApps();};
+  document.getElementById('apps-dir').onclick=function(){appsState.dir=appsState.dir==='asc'?'desc':'asc';renderApps();};
+  document.getElementById('apps-export').onclick=function(){
+    downloadCSV('enjeeoh-applications-'+new Date().toISOString().slice(0,10)+'.csv',
+      ['name','email','status','country','contact','website','members','max_members','suspended','applied'],
+      appsFiltered().map(function(a){return [a.name,a.email,a.status,a.country,a.contactName,a.website,a.memberCount,a.maxMembers||0,a.suspended?'yes':'no',a.createdAt];}));
+  };
+}
+window.decide=function(id,decision){
+  var note=document.getElementById('note-'+id).value;
+  fetch('/api/console/'+id+'/decision',{method:'POST',headers:H(),body:JSON.stringify({decision:decision,note:note})}).then(loadApps);
+};
+window.setOrgCap=function(id){
+  var v=document.getElementById('cap-'+id).value;
+  fetch('/api/console/org/'+id+'/limit',{method:'PUT',headers:H(),body:JSON.stringify({maxMembers:v})}).then(loadApps);
+};
+
+// ================= MEMBERS (all orgs) =================
+var memState={raw:[],q:'',role:'',status:'',locked:'',sort:'orgName',dir:'asc'};
+function loadMembers(){
+  fetch('/api/console/members',{headers:H()}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(list){ memState.raw=list; renderMembers(); }).catch(function(){showLogin();});
+}
+function memFiltered(){
+  var rows=memState.raw.filter(function(m){
+    if(memState.role&&m.role!==memState.role)return false;
+    if(memState.status&&m.status!==memState.status)return false;
+    if(memState.locked==='locked'&&!m.locked)return false;
+    if(memState.locked==='reset'&&!m.forceReset)return false;
+    return textIncludes(m,['name','email','orgName','role'],memState.q);
+  });
+  return sortRows(rows,memState.sort,memState.dir);
+}
+function renderMembers(){
+  var rows=memFiltered();
+  var toolbar='<div class="toolbar">'+
+    '<input type="search" id="mem-q" placeholder="Search member, email, org..." value="'+attr(memState.q)+'">'+
+    '<select id="mem-role"><option value="">All roles</option>'+['admin','manager','member'].map(function(r){return '<option value="'+r+'"'+(memState.role===r?' selected':'')+'>'+r+'</option>';}).join('')+'</select>'+
+    '<select id="mem-status"><option value="">All states</option>'+['active','invited','suspended'].map(function(s){return '<option value="'+s+'"'+(memState.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
+    '<select id="mem-locked"><option value="">Any</option><option value="locked"'+(memState.locked==='locked'?' selected':'')+'>Locked only</option><option value="reset"'+(memState.locked==='reset'?' selected':'')+'>Reset pending</option></select>'+
+    '<button class="ghost" id="mem-export">Export CSV</button></div>';
+  var head='<thead><tr>'+sortableTh('Name','name',memState)+sortableTh('Email','email',memState)+sortableTh('Organisation','orgName',memState)+sortableTh('Role','role',memState)+sortableTh('State','status',memState)+sortableTh('Pwd age','passwordAgeDays',memState)+'<th>Actions</th></tr></thead>';
+  var trs=rows.map(function(m){
+    var state=m.suspended?'<span class="badge b-locked">suspended</span>':(m.locked?'<span class="badge b-locked">locked</span>':'<span class="badge b-'+(m.status==='active'?'active':'invited')+'">'+m.status+'</span>');
+    var age=m.passwordAgeDays==null?'—':(m.passwordAgeDays+'d');
+    var acts='<button class="ghost" onclick="memForceReset(\''+m.id+'\')">Force reset</button>';
+    if(m.locked) acts+='<button class="go" onclick="memUnlock(\''+m.id+'\')">Unlock</button>';
+    acts+=(m.suspended?'<button class="go" onclick="memSuspend(\''+m.id+'\',\'restore\')">Restore</button>':'<button class="no" onclick="memSuspend(\''+m.id+'\',\'suspend\')">Suspend</button>');
+    return '<tr><td>'+esc(m.name)+(m.forceReset?' <span class="badge b-pending">reset</span>':'')+'</td><td class="mono">'+esc(m.email)+'</td><td>'+esc(m.orgName)+'</td><td>'+esc(m.role)+'</td><td>'+state+'</td><td>'+age+'</td><td><div class="acts" style="margin:0">'+acts+'</div></td></tr>';
+  }).join('');
+  document.getElementById('members').innerHTML='<div class="card">'+toolbar+'<div class="meta" style="margin-bottom:8px">'+rows.length+' of '+memState.raw.length+' members</div><div style="overflow-x:auto"><table>'+head+'<tbody>'+(trs||'<tr><td colspan="7">No matching members.</td></tr>')+'</tbody></table></div></div>';
+  var scope=document.getElementById('members');
+  document.getElementById('mem-q').oninput=function(){memState.q=this.value;renderMembers();var i=document.getElementById('mem-q');i.focus();i.setSelectionRange(i.value.length,i.value.length);};
+  document.getElementById('mem-role').onchange=function(){memState.role=this.value;renderMembers();};
+  document.getElementById('mem-status').onchange=function(){memState.status=this.value;renderMembers();};
+  document.getElementById('mem-locked').onchange=function(){memState.locked=this.value;renderMembers();};
+  document.getElementById('mem-export').onclick=function(){
+    downloadCSV('enjeeoh-members-'+new Date().toISOString().slice(0,10)+'.csv',
+      ['name','email','organisation','role','status','suspended','locked','force_reset','mfa','password_age_days','created'],
+      memFiltered().map(function(m){return [m.name,m.email,m.orgName,m.role,m.status,m.suspended?'yes':'no',m.locked?'yes':'no',m.forceReset?'yes':'no',m.mfaEnabled?'yes':'no',m.passwordAgeDays==null?'':m.passwordAgeDays,m.createdAt||''];}));
+  };
+  wireSort(scope,memState,renderMembers);
+}
+window.memForceReset=function(id){ if(!confirm('Require this member to set a new password before they can sign in again? They will be emailed a reset link.'))return; fetch('/api/console/member/'+id+'/force-reset',{method:'POST',headers:H()}).then(loadMembers); };
+window.memUnlock=function(id){ fetch('/api/console/member/'+id+'/unlock',{method:'POST',headers:H()}).then(loadMembers); };
+window.memSuspend=function(id,action){ fetch('/api/console/member/'+id+'/'+action,{method:'POST',headers:H()}).then(loadMembers); };
+
+// ================= ACTIVITY LOG (server-side pagination) =================
+var logState={items:[],total:0,page:1,pageSize:50,q:'',sort:'ts',dir:'desc'};
+function logsUrl(p){ return '/api/console/logs?paginate=1&page='+(p||logState.page)+'&pageSize='+logState.pageSize+'&q='+encodeURIComponent(logState.q)+'&sort='+logState.sort+'&dir='+logState.dir; }
+function loadLogs(){
+  fetch(logsUrl(),{headers:H()}).then(function(r){return r.json();}).then(function(d){ logState.items=d.items||[]; logState.total=d.total||0; renderLogs(); });
+}
+function renderLogs(){
+  var toolbar='<div class="toolbar">'+
+    '<input type="search" id="log-q" placeholder="Search action, actor, org, IP..." value="'+attr(logState.q)+'">'+
+    '<select id="log-size"><option value="50"'+(logState.pageSize===50?' selected':'')+'>50 per page</option><option value="100"'+(logState.pageSize===100?' selected':'')+'>100 per page</option></select>'+
+    '<button class="ghost" id="log-export">Export CSV</button></div>';
+  var head='<thead><tr>'+sortableTh('When','ts',logState)+sortableTh('Action','action',logState)+sortableTh('Actor','actor',logState)+sortableTh('Organisation','accountName',logState)+'<th>Detail</th><th>IP</th></tr></thead>';
+  var trs=logState.items.map(function(l){return '<tr><td class="mono">'+esc(new Date(l.ts).toLocaleString())+'</td><td>'+esc(l.action)+'</td><td>'+esc(l.actor)+'<div class="meta">'+esc(l.actorRole||'')+'</div></td><td>'+esc(l.accountName||'')+'</td><td>'+esc(l.detail||'')+'</td><td class="mono">'+esc(l.ip||'')+'</td></tr>';}).join('');
+  var pages=Math.max(1,Math.ceil(logState.total/logState.pageSize));
+  var pager='<div class="pager"><span class="meta">'+logState.total+' events · page '+logState.page+' of '+pages+'</span>'+
+    '<button class="ghost" id="log-prev"'+(logState.page<=1?' disabled':'')+'>Prev</button>'+
+    '<button class="ghost" id="log-next"'+(logState.page>=pages?' disabled':'')+'>Next</button></div>';
+  document.getElementById('logs').innerHTML='<div class="card"><div class="row" style="margin-bottom:10px"><h3 style="margin:0;font:600 16px Space Grotesk">Activity log</h3></div>'+toolbar+'<div style="overflow-x:auto"><table>'+head+'<tbody>'+(trs||'<tr><td colspan="6">No activity.</td></tr>')+'</tbody></table></div>'+pager+'</div>';
+  var scope=document.getElementById('logs');
+  var qi=document.getElementById('log-q');
+  qi.oninput=function(){ logState.q=this.value; logState.page=1; clearTimeout(window._logT); window._logT=setTimeout(function(){loadLogs();},250); };
+  document.getElementById('log-size').onchange=function(){ logState.pageSize=Number(this.value); logState.page=1; loadLogs(); };
+  document.getElementById('log-prev').onclick=function(){ if(logState.page>1){logState.page--;loadLogs();} };
+  document.getElementById('log-next').onclick=function(){ if(logState.page<pages){logState.page++;loadLogs();} };
+  document.getElementById('log-export').onclick=exportLogsAll;
+  wireSort(scope,logState,function(){ logState.page=1; loadLogs(); });
+}
+function exportLogsAll(){
+  var all=[],page=1,total=Infinity;
+  function next(){
+    fetch('/api/console/logs?paginate=1&page='+page+'&pageSize=100&q='+encodeURIComponent(logState.q)+'&sort='+logState.sort+'&dir='+logState.dir,{headers:H()})
+      .then(function(r){return r.json();}).then(function(d){ all=all.concat(d.items||[]); total=d.total||0; page++;
+        if(all.length<total && (d.items||[]).length>0){ next(); }
+        else { downloadCSV('enjeeoh-activity-log-'+new Date().toISOString().slice(0,10)+'.csv',
+          ['time','action','actor','actor_role','organisation','detail','ip'],
+          all.map(function(l){return [new Date(l.ts).toISOString(),l.action,l.actor,l.actorRole||'',l.accountName||'',l.detail||'',l.ip||''];})); }
+      });
+  }
+  next();
+}
+
+// ================= ADMINS =================
+var adminState={raw:[],q:'',sort:'createdAt',dir:'desc'};
+function roleSel(id, val){ return '<select id="'+id+'"><option value="onboarding"'+(val==='onboarding'?' selected':'')+'>Onboarding (approve NGOs)</option><option value="content"'+(val==='content'?' selected':'')+'>Content manager (edit site)</option></select>'; }
+function loadAdmins(){
+  fetch('/api/console/admins',{headers:H()}).then(function(r){return r.json();}).then(function(admins){ adminState.raw=admins; renderAdmins(); });
+}
+function adminsFiltered(){ return sortRows(adminState.raw.filter(function(a){return textIncludes(a,['name','email','role'],adminState.q);}),adminState.sort,adminState.dir); }
+function renderAdmins(){
+  var rows=adminsFiltered();
+  var toolbar='<div class="toolbar"><input type="search" id="adm-q" placeholder="Search admin..." value="'+attr(adminState.q)+'">'+
+    '<select id="adm-sort">'+[['createdAt','Newest'],['name','Name'],['email','Email'],['role','Role']].map(function(o){return '<option value="'+o[0]+'"'+(adminState.sort===o[0]?' selected':'')+'>Sort: '+o[1]+'</option>';}).join('')+'</select>'+
+    '<button class="ghost" id="adm-dir">'+(adminState.dir==='asc'?'Asc ▲':'Desc ▼')+'</button>'+
+    '<button class="ghost" id="adm-export">Export CSV</button></div>';
+  var list=rows.map(function(a){return '<div class="row" style="padding:10px 0;border-bottom:1px solid var(--line)"><div><b>'+esc(a.name)+'</b><div class="meta">'+esc(a.email)+' · joined '+esc(new Date(a.createdAt).toLocaleDateString())+'</div></div><div class="lim">'+roleSel('role-'+a.id,a.role)+'<button class="ghost" onclick="setRole(\''+a.id+'\')">Save role</button><button class="no" onclick="rmAdmin(\''+a.id+'\')">Remove</button></div></div>';}).join('');
+  document.getElementById('admins').innerHTML='<div class="card"><h3 style="margin:0 0 4px;font:600 16px Space Grotesk">Platform admins</h3><p class="meta">Onboarding admins approve organisations. Content managers edit the site. You, the super admin, can do everything.</p>'+toolbar+(list||'<p class="meta">No matching admins.</p>')+
+    '<div class="lim" style="margin-top:14px"><input id="aname" placeholder="Name"><input id="aemail" type="email" placeholder="Email"><input id="apass" type="password" placeholder="Password"> '+roleSel('arole','onboarding')+'<button class="go" onclick="addAdmin()">Add admin</button></div><div class="err" id="aerr"></div></div>';
+  document.getElementById('adm-q').oninput=function(){adminState.q=this.value;renderAdmins();var i=document.getElementById('adm-q');i.focus();i.setSelectionRange(i.value.length,i.value.length);};
+  document.getElementById('adm-sort').onchange=function(){adminState.sort=this.value;renderAdmins();};
+  document.getElementById('adm-dir').onclick=function(){adminState.dir=adminState.dir==='asc'?'desc':'asc';renderAdmins();};
+  document.getElementById('adm-export').onclick=function(){ downloadCSV('enjeeoh-admins-'+new Date().toISOString().slice(0,10)+'.csv',['name','email','role','joined'],adminsFiltered().map(function(a){return [a.name,a.email,a.role,a.createdAt];})); };
+}
+window.setRole=function(id){ fetch('/api/console/admins/'+id+'/role',{method:'PUT',headers:H(),body:JSON.stringify({role:document.getElementById('role-'+id).value})}).then(loadAdmins); };
+window.addAdmin=function(){
+  var err=document.getElementById('aerr');err.textContent='';
+  fetch('/api/console/admins',{method:'POST',headers:H(),body:JSON.stringify({name:document.getElementById('aname').value.trim(),email:document.getElementById('aemail').value.trim(),password:document.getElementById('apass').value,role:document.getElementById('arole').value})})
+   .then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error);return d;});}).then(loadAdmins).catch(function(e){err.textContent=e.message;});
+};
+window.rmAdmin=function(id){fetch('/api/console/admins/'+id,{method:'DELETE',headers:H()}).then(loadAdmins);};
+
+// ================= ORGANISATIONS =================
+var orgState={raw:[],limits:{},q:'',status:'',sort:'name',dir:'asc'};
+function loadLimits(){
+  Promise.all([
+    fetch('/api/console/limits',{headers:H()}).then(function(r){return r.json();}),
+    fetch('/api/console/applications',{headers:H()}).then(function(r){return r.json();})
+  ]).then(function(res){ orgState.limits=res[0]; orgState.raw=res[1]; renderLimits(); });
+}
+function orgsFiltered(){
+  var rows=orgState.raw.filter(function(a){ if(orgState.status==='suspended'&&!a.suspended)return false; if(orgState.status==='archived'&&!a.archived)return false; if(['pending','approved','rejected'].indexOf(orgState.status)>=0&&a.status!==orgState.status)return false; return textIncludes(a,['name','email','slug','country'],orgState.q); });
+  return sortRows(rows,orgState.sort,orgState.dir);
+}
+function renderLimits(){
+  var l=orgState.limits;
+  var top='<div class="card"><h3 style="margin:0 0 4px;font:600 16px Space Grotesk">User limits</h3>'+
+    '<p class="meta">Currently '+l.totalMembers+' members across all organisations.</p>'+
+    '<div class="lim" style="margin-top:12px">Global maximum users (all enterprises): <input type="number" min="0" id="gmax" value="'+(l.globalMax||0)+'"></div>'+
+    '<div class="lim">Default maximum per new organisation: <input type="number" min="0" id="odef" value="'+(l.orgDefault||0)+'"></div>'+
+    '<div class="lim"><button class="go" onclick="saveLimits()">Save limits</button> <span class="meta">(0 = no limit)</span></div></div>';
+  var toolbar='<div class="card"><div class="toolbar">'+
+    '<input type="search" id="org-q" placeholder="Search organisation..." value="'+attr(orgState.q)+'">'+
+    '<select id="org-status"><option value="">All</option>'+['pending','approved','rejected','suspended','archived'].map(function(s){return '<option value="'+s+'"'+(orgState.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
+    '<select id="org-sort">'+[['name','Name'],['createdAt','Newest'],['status','Status'],['memberCount','Members']].map(function(o){return '<option value="'+o[0]+'"'+(orgState.sort===o[0]?' selected':'')+'>Sort: '+o[1]+'</option>';}).join('')+'</select>'+
+    '<button class="ghost" id="org-dir">'+(orgState.dir==='asc'?'Asc ▲':'Desc ▼')+'</button>'+
+    '<button class="ghost" id="org-export">Export CSV</button></div><div class="meta" id="org-count"></div></div>';
+  var rows=orgsFiltered();
+  var list=rows.map(function(a){
+    return '<div class="card"'+(a.archived?' style="opacity:.6"':'')+'><div class="row"><div><b>'+esc(a.name)+'</b>'+(a.archived?' <span class="badge b-rejected">archived</span>':'')+(a.suspended?' <span class="badge b-rejected">suspended</span>':'')+' <span class="badge b-'+a.status+'">'+a.status+'</span>'+
+      '<div class="meta">'+esc(a.email)+' · '+a.memberCount+' members'+(a.maxMembers>0?' (cap '+a.maxMembers+')':' (no cap)')+'</div></div></div>'+
+      '<div class="lim" style="margin-top:8px">Max members: <input type="number" min="0" id="cap-'+a.id+'" value="'+(a.maxMembers||0)+'"> <button class="ghost" onclick="setOrgCap2(\''+a.id+'\')">Save cap</button>'+
+      (a.suspended?'<button class="go" onclick="orgAccess(\''+a.id+'\',\'restore\')">Restore access</button>':'<button class="no" onclick="orgAccess(\''+a.id+'\',\'suspend\')">Revoke access</button>')+
+      '<button class="ghost" onclick="orgForceReset(\''+a.id+'\',\''+attr(a.name)+'\')">Force reset all</button>'+
+      (a.archived?'<button class="ghost" onclick="orgArchive(\''+a.id+'\',\'unarchive\')">Unarchive</button>':'<button class="ghost" onclick="orgArchive(\''+a.id+'\',\'archive\')">Archive</button>')+
+      '<button class="no" onclick="orgDelete(\''+a.id+'\',\''+attr(a.name)+'\')">Delete</button>'+
+      '<button class="ghost" onclick="toggleMembers(\''+a.id+'\')">Members</button></div><div id="mem-'+a.id+'" class="hide" style="margin-top:8px"></div></div>';
+  }).join('');
+  document.getElementById('limits').innerHTML=top+toolbar+'<h3 style="margin:16px 0 8px;font:600 15px Space Grotesk">All organisations</h3>'+(list||'<div class="card">No matching organisations.</div>');
+  document.getElementById('org-count').textContent=rows.length+' of '+orgState.raw.length+' organisations';
+  document.getElementById('org-q').oninput=function(){orgState.q=this.value;renderLimits();var i=document.getElementById('org-q');i.focus();i.setSelectionRange(i.value.length,i.value.length);};
+  document.getElementById('org-status').onchange=function(){orgState.status=this.value;renderLimits();};
+  document.getElementById('org-sort').onchange=function(){orgState.sort=this.value;renderLimits();};
+  document.getElementById('org-dir').onclick=function(){orgState.dir=orgState.dir==='asc'?'desc':'asc';renderLimits();};
+  document.getElementById('org-export').onclick=function(){ downloadCSV('enjeeoh-organisations-'+new Date().toISOString().slice(0,10)+'.csv',['name','email','status','members','max_members','suspended','archived','created'],orgsFiltered().map(function(a){return [a.name,a.email,a.status,a.memberCount,a.maxMembers||0,a.suspended?'yes':'no',a.archived?'yes':'no',a.createdAt];})); };
+}
+window.setOrgCap2=function(id){ fetch('/api/console/org/'+id+'/limit',{method:'PUT',headers:H(),body:JSON.stringify({maxMembers:document.getElementById('cap-'+id).value})}).then(loadLimits); };
+window.orgAccess=function(id,action){ if(action==='suspend'&&!confirm('Revoke access for this whole organisation? Its members will not be able to sign in.'))return; fetch('/api/console/org/'+id+'/'+action,{method:'POST',headers:H()}).then(loadLimits); };
+window.orgArchive=function(id,action){ fetch('/api/console/org/'+id+'/'+action,{method:'POST',headers:H()}).then(loadLimits); };
+window.orgForceReset=function(id,name){ if(!confirm('Force every active member of "'+name+'" to set a new password before signing in again? Each is emailed a reset link.'))return; fetch('/api/console/org/'+id+'/force-reset',{method:'POST',headers:H()}).then(function(r){return r.json();}).then(function(d){ alert('Reset required for '+(d.count||0)+' members.'); }); };
+window.orgDelete=function(id,name){ if(!confirm('Permanently delete "'+name+'" and all its members, bookings and data? This cannot be undone.'))return; if(!confirm('Are you absolutely sure? This is irreversible.'))return; fetch('/api/console/org/'+id,{method:'DELETE',headers:H()}).then(loadLimits); };
+window.toggleMembers=function(id){
+  var box=document.getElementById('mem-'+id); if(!box.classList.contains('hide')){box.classList.add('hide');return;}
+  box.classList.remove('hide');
+  fetch('/api/console/org/'+id+'/members',{headers:H()}).then(function(r){return r.json();}).then(function(ms){
+    box.innerHTML=ms.map(function(m){
+      var tags=(m.suspended?' <span class="badge b-rejected">suspended</span>':'')+(m.locked?' <span class="badge b-locked">locked</span>':'')+(m.forceReset?' <span class="badge b-pending">reset</span>':'');
+      var acts=(m.locked&&m.role!=='admin'?'<button class="go" onclick="memUnlock2(\''+m.id+'\',\''+id+'\')">Unlock</button>':'')+
+        '<button class="ghost" onclick="memReset2(\''+m.id+'\',\''+id+'\')">Force reset</button>'+
+        (m.suspended?'<button class="go" onclick="memAccess(\''+m.id+'\',\'restore\',\''+id+'\')">Restore</button>':'<button class="no" onclick="memAccess(\''+m.id+'\',\'suspend\',\''+id+'\')">Revoke</button>');
+      return '<div class="row" style="padding:6px 0;border-top:1px solid var(--line)"><div>'+esc(m.name)+' <span class="meta">'+esc(m.email)+' · '+m.role+'</span>'+tags+'</div><div class="acts" style="margin:0">'+acts+'</div></div>';
+    }).join('')||'<p class="meta">No members.</p>';
+  });
+};
+function reopenMembers(oid){ document.getElementById('mem-'+oid).classList.add('hide'); toggleMembers(oid); }
+window.memAccess=function(mid,action,oid){ fetch('/api/console/member/'+mid+'/'+action,{method:'POST',headers:H()}).then(function(){ reopenMembers(oid); }); };
+window.memUnlock2=function(mid,oid){ fetch('/api/console/member/'+mid+'/unlock',{method:'POST',headers:H()}).then(function(){ reopenMembers(oid); }); };
+window.memReset2=function(mid,oid){ if(!confirm('Require this member to reset their password?'))return; fetch('/api/console/member/'+mid+'/force-reset',{method:'POST',headers:H()}).then(function(){ reopenMembers(oid); }); };
+window.saveLimits=function(){ fetch('/api/console/limits',{method:'PUT',headers:H(),body:JSON.stringify({globalMax:document.getElementById('gmax').value,orgDefault:document.getElementById('odef').value})}).then(loadLimits); };
+
+// ================= EMAIL TEMPLATES (visual editor only) =================
+// The body is edited in a WYSIWYG contenteditable surface — there is no raw-HTML
+// field. A toolbar drives document.execCommand for formatting, and placeholder
+// chips insert {{tokens}} at the cursor. We save the editor's innerHTML.
+function tbtn(label, cmd, k){ return '<button type="button" class="ghost" style="padding:5px 9px" onmousedown="return etCmd(event,\''+cmd+'\',\''+k+'\')">'+label+'</button>'; }
+function loadEmails(){
+  fetch('/api/console/email-templates',{headers:H()}).then(function(r){return r.json();}).then(function(t){
+    var keys=Object.keys(t);
+    var cards=keys.map(function(k){var d=t[k];
+      var vars=d.vars.map(function(v){return '<button type="button" class="ghost" style="padding:5px 9px;font-family:ui-monospace,monospace" onmousedown="return etInsert(event,\''+k+'\',\''+v+'\')">{{'+v+'}}</button>';}).join(' ');
+      return '<details class="acc"><summary>'+esc(d.label)+(d.customised?' <span class="badge b-pending">customised</span>':'')+'</summary><div class="acc-body">'+
+        '<div class="field"><label>Subject</label><input style="width:100%" id="et-sub-'+k+'" value="'+attr(d.subject)+'"></div>'+
+        '<div class="field"><label>Message</label>'+
+          '<div class="toolbar" style="margin:0 0 6px;gap:4px">'+tbtn('<b>B</b>','bold',k)+tbtn('<i>I</i>','italic',k)+tbtn('<u>U</u>','underline',k)+tbtn('Heading','formatBlock:h3',k)+tbtn('• List','insertUnorderedList',k)+tbtn('Link','createLink',k)+tbtn('Clear','removeFormat',k)+'</div>'+
+          '<div id="et-html-'+k+'" contenteditable="true" class="wysiwyg">'+d.html+'</div>'+
+          '<div class="meta" style="margin-top:6px">Insert placeholder: '+vars+'</div>'+
+        '</div>'+
+        '<div class="lim"><button class="go" onclick="saveTpl(\''+k+'\')">Save</button><button class="ghost" onclick="resetTpl(\''+k+'\')">Reset to default</button><span class="err" id="et-msg-'+k+'" style="margin:0"></span></div></div></details>';
+    }).join('');
+    document.getElementById('emails').innerHTML='<div class="card"><h3 style="margin:0 0 4px;font:600 16px Space Grotesk">Email templates</h3><p class="meta">Every lifecycle email the platform sends. Click one to edit. Format visually and drop in placeholders — no HTML needed. Reset restores the built-in default.</p></div>'+cards;
+  });
+}
+// Toolbar command. onmousedown + preventDefault keeps the editor selection.
+window.etCmd=function(e,cmd,k){
+  e.preventDefault();
+  document.getElementById('et-html-'+k).focus();
+  if(cmd==='createLink'){ var url=prompt('Link URL (https://...)'); if(url) document.execCommand('createLink',false,url); return false; }
+  if(cmd.indexOf('formatBlock:')===0){ document.execCommand('formatBlock',false,cmd.split(':')[1]); return false; }
+  document.execCommand(cmd,false,null);
+  return false;
+};
+window.etInsert=function(e,k,v){ e.preventDefault(); document.getElementById('et-html-'+k).focus(); document.execCommand('insertText',false,'{{'+v+'}}'); return false; };
+window.saveTpl=function(k){
+  var msg=document.getElementById('et-msg-'+k);
+  fetch('/api/console/email-templates/'+k,{method:'PUT',headers:H(),body:JSON.stringify({subject:document.getElementById('et-sub-'+k).value,html:document.getElementById('et-html-'+k).innerHTML})})
+    .then(function(r){return r.json();}).then(function(){ msg.style.color='var(--accent)'; msg.textContent='Saved.'; setTimeout(loadEmails,600); });
+};
+window.resetTpl=function(k){ if(!confirm('Restore this template to its default?'))return; fetch('/api/console/email-templates/'+k,{method:'DELETE',headers:H()}).then(loadEmails); };
+
+// ================= DESIGN =================
+var navItems=[];
+function loadDesign(){
+  document.getElementById('design').innerHTML='<div class="card"><div class="tabs" id="dtabs" style="margin:0 0 14px">'+
+    '<button class="tab on" data-d="menu">Menu</button>'+
+    '<button class="tab" data-d="/editor">Landing</button>'+
+    '<button class="tab" data-d="/donate">Support</button>'+
+    '<button class="tab" data-d="/about">About</button>'+
+    '<button class="tab" data-d="/demo">Demo</button>'+
+    '<button class="tab" data-d="/privacy">Privacy</button>'+
+    '<button class="tab" data-d="/terms">Terms</button>'+
+    '<button class="tab" data-d="/cookies">Cookies</button>'+
+    '<button class="tab" data-d="/acceptable-use">Acceptable use</button>'+
+    '<button class="tab" data-d="/dpa">DPA</button>'+
+    '<button class="tab" data-d="/legal">Legal index</button>'+
+    '</div><div id="dpane"></div></div>';
+  document.querySelectorAll('#dtabs .tab').forEach(function(b){b.onclick=function(){document.querySelectorAll('#dtabs .tab').forEach(function(x){x.classList.remove('on')});b.classList.add('on');openDesign(b.dataset.d);};});
+  openDesign('menu');
+}
+function openDesign(d){
+  var pane=document.getElementById('dpane');
+  if(d==='menu'){ fetch('/api/nav').then(function(r){return r.json();}).then(function(items){ navItems=items.slice(); pane.innerHTML='<div id="nav-editor"></div>'; renderNav(); }); return; }
+  // Load the page in edit mode so its in-place visual editor (Edit button) appears.
+  var src = d + (d.indexOf('?')<0?'?edit=1':'&edit=1');
+  pane.innerHTML='<p class="meta" style="margin:0 0 8px">This page is editable here. Click <b>Edit page</b> (bottom-right of the preview), make changes, then Save and publish.</p><iframe src="'+src+'" style="width:100%;height:72vh;border:1px solid var(--line);border-radius:12px;background:#fff"></iframe>';
+}
+function syncNav(){ var rows=document.querySelectorAll('#nav-list .nav-row'); navItems=Array.prototype.map.call(rows,function(r){return {label:r.querySelector('.nl').value,href:r.querySelector('.nh').value,hidden:r.querySelector('.nhide').checked};}); }
+function renderNav(){
+  var rows=navItems.map(function(it,i){return '<div class="nav-row lim"><input class="nl" value="'+attr(it.label)+'" placeholder="Label"><input class="nh" value="'+attr(it.href)+'" placeholder="/path"><label style="font:500 12px Inter;display:flex;align-items:center;gap:4px"><input type="checkbox" class="nhide" '+(it.hidden?'checked':'')+'>Hide</label><button class="ghost" onclick="navMove('+i+',-1)">Up</button><button class="ghost" onclick="navMove('+i+',1)">Down</button><button class="no" onclick="navDel('+i+')">Remove</button></div>';}).join('');
+  document.getElementById('nav-editor').innerHTML='<h3 style="margin:0 0 4px;font:600 16px Space Grotesk">Navigation menu</h3><p class="meta">Links shown in the site header. Tick Hide to keep a link off the menu without deleting it.</p><div id="nav-list">'+rows+'</div><div class="lim" style="margin-top:10px"><button class="ghost" onclick="navAdd()">Add link</button><button class="go" onclick="navSave()">Save menu</button></div><div class="err" id="naverr"></div>';
+}
+window.navAdd=function(){ syncNav(); navItems.push({label:'New link',href:'/'}); renderNav(); };
+window.navDel=function(i){ syncNav(); navItems.splice(i,1); renderNav(); };
+window.navMove=function(i,d){ syncNav(); var j=i+d; if(j<0||j>=navItems.length)return; var t=navItems[i];navItems[i]=navItems[j];navItems[j]=t; renderNav(); };
+window.navSave=function(){ syncNav(); fetch('/api/console/nav',{method:'PUT',headers:H(),body:JSON.stringify({items:navItems})}).then(function(r){return r.json().then(function(d){var e=document.getElementById('naverr');e.style.color=r.ok?'var(--accent)':'#C0392B';e.textContent=r.ok?'Saved.':(d.error||'Failed');});}); };
+
+// ================= SECURITY =================
+function loadSecurity(){
+  fetch('/api/console/policy',{headers:H()}).then(function(r){return r.json();}).then(function(p){
+    function ck(id,on){return '<label style="display:block;margin:6px 0;font:500 14px Inter"><input type="checkbox" id="'+id+'" '+(on?'checked':'')+' style="width:auto;margin-right:8px;vertical-align:-1px">';}
+    document.getElementById('security').innerHTML='<details class="acc" open><summary>Password policy</summary><div class="acc-body">'+
+      '<p class="meta" style="margin-top:0">Applies whenever a password is set or changed.</p>'+
+      '<div class="lim" style="margin-top:10px">Minimum length: <input type="number" min="8" max="64" id="pmin" value="'+(p.minLength||8)+'"></div>'+
+      ck('pupper',p.requireUpper)+'Require an uppercase letter</label>'+
+      ck('pnum',p.requireNumber)+'Require a number</label>'+
+      ck('psym',p.requireSymbol)+'Require a symbol</label>'+
+      ck('pmfa',p.requireMfa)+'Require two factor authentication (MFA)</label>'+
+      '<div class="lim" style="margin-top:10px"><button class="go" onclick="saveSecurity()">Save policy</button><span class="err" id="secmsg" style="margin:0"></span></div></div></details>'+
+
+      '<details class="acc"><summary>Password expiry &amp; reminders</summary><div class="acc-body">'+
+      '<p class="meta" style="margin-top:0">Force a reset after a set age, and email reminders as the password gets old.</p>'+
+      '<div class="lim" style="margin-top:10px">Expire passwords after <input type="number" min="0" max="3650" id="pexp" value="'+(p.expiryDays||0)+'"> days <span class="meta">(0 = never)</span></div>'+
+      '<div class="lim">Email reminders at these password ages (days, comma separated): <input style="width:200px" id="prem" value="'+attr((p.reminderDays||[]).join(', '))+'"></div>'+
+      '<div class="lim" style="margin-top:10px"><button class="go" onclick="saveSecurity()">Save</button> <span class="meta">e.g. 30, 60, 90</span></div></div></details>'+
+
+      '<details class="acc"><summary>Account lockout</summary><div class="acc-body">'+
+      '<p class="meta" style="margin-top:0">Lock an account after repeated wrong passwords. Members are unlocked by an admin in their organisation; org admins are unlocked by you here in Members.</p>'+
+      '<div class="lim" style="margin-top:10px">Lock after <input type="number" min="0" max="20" id="plk" value="'+(p.lockoutThreshold||0)+'"> wrong attempts <span class="meta">(0 = never)</span></div>'+
+      '<div class="lim">Stay locked for <input type="number" min="1" max="1440" id="plm" value="'+(p.lockoutMinutes||30)+'"> minutes</div>'+
+      '<div class="lim" style="margin-top:10px"><button class="go" onclick="saveSecurity()">Save</button></div></div></details>'+
+
+      '<details class="acc"><summary>Email delivery test</summary><div class="acc-body">'+
+      '<p class="meta" style="margin-top:0">Send a test message to check your email setup (Resend, Brevo or SMTP). If it fails the exact reason is shown.</p>'+
+      '<div class="lim" style="margin-top:10px"><input id="testto" type="email" placeholder="your@email.com"><button class="go" onclick="testEmail()">Send test email</button></div><div class="err" id="testres" style="margin-top:8px;white-space:normal"></div></div></details>';
+  });
+}
+window.testEmail=function(){
+  var res=document.getElementById('testres');res.style.color='var(--muted)';res.textContent='Sending...';
+  fetch('/api/console/test-email',{method:'POST',headers:H(),body:JSON.stringify({to:document.getElementById('testto').value.trim()})})
+   .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
+   .then(function(x){ if(x.ok){res.style.color='var(--accent)';res.textContent='Sent from '+x.d.from+' via '+x.d.method+'. Check the inbox and spam.';} else {res.style.color='#C0392B';res.textContent=x.d.error;} })
+   .catch(function(){res.style.color='#C0392B';res.textContent='Request failed.';});
+};
+window.saveSecurity=function(){
+  var rem=(document.getElementById('prem')?document.getElementById('prem').value:'').split(',').map(function(s){return parseInt(s.trim(),10);}).filter(function(n){return n>0;});
+  fetch('/api/console/policy',{method:'PUT',headers:H(),body:JSON.stringify({
+    minLength:document.getElementById('pmin').value,
+    requireUpper:document.getElementById('pupper').checked,
+    requireNumber:document.getElementById('pnum').checked,
+    requireSymbol:document.getElementById('psym').checked,
+    requireMfa:document.getElementById('pmfa').checked,
+    expiryDays:document.getElementById('pexp').value,
+    reminderDays:rem,
+    lockoutThreshold:document.getElementById('plk').value,
+    lockoutMinutes:document.getElementById('plm').value
+  })}).then(function(r){return r.json();}).then(function(){var m=document.getElementById('secmsg');if(m){m.style.color='var(--accent)';m.textContent='Saved.';}setTimeout(loadSecurity,600);});
+};
+
+// boot: the cookie (if any) is sent automatically; ask the server who we are.
+fetch('/api/console/me',{headers:H(),credentials:'same-origin'}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(d){role=d.role;showApp();}).catch(showLogin);
+</script>
+</body>
+</html>

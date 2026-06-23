@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cookie Policy · Enjeeoh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/legal.css">
+<script src="/theme.js"></script>
+</head>
+<body>
+<div class="legal-top"><a class="home" href="/">← Enjeeoh</a><nav><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/acceptable-use">Acceptable Use</a><a href="/dpa">DPA</a></nav></div>
+<div class="wrap">
+<div class="doc" data-edit="body">
+  <h1>Cookie Policy</h1>
+  <p class="updated">Last updated: <span class="placeholder">[date]</span></p>
+
+  <p>This Cookie Policy explains how Enjeeoh uses cookies and similar technologies. We keep this deliberately minimal: we use only <b>strictly necessary</b> cookies that are required to sign you in and protect your session. We do <b>not</b> use advertising, analytics, or third-party tracking cookies.</p>
+
+  <h2>What cookies we set</h2>
+  <table>
+    <tr><th>Cookie</th><th>Purpose</th><th>Type</th><th>Expiry</th></tr>
+    <tr><td><code>os_token</code></td><td>Keeps a member signed in to their dashboard.</td><td>Essential, HttpOnly</td><td>~7 days</td></tr>
+    <tr><td><code>os_console</code></td><td>Keeps a platform/super admin signed in to the console.</td><td>Essential, HttpOnly</td><td>~7 days</td></tr>
+    <tr><td><code>csrf</code></td><td>Anti-forgery token checked on requests that change data, to prevent cross-site request forgery.</td><td>Essential</td><td>~7 days</td></tr>
+  </table>
+
+  <h2>Why we don’t show a cookie banner</h2>
+  <p>Under UK/EU rules (and similar laws elsewhere), strictly necessary cookies — those required to deliver a service the user has requested, such as authentication and security — do not require consent. As we use only such cookies, no consent banner is needed. If we ever introduce non-essential cookies, we will update this Policy and ask for consent first.</p>
+
+  <h2>Managing cookies</h2>
+  <p>You can clear or block cookies in your browser settings. Because our cookies are essential, blocking them will prevent you from signing in and using the dashboard or console.</p>
+
+  <h2>Other storage</h2>
+  <p>Enjeeoh does not store your session token in browser local storage; the session lives only in the HttpOnly cookie above, which page scripts cannot read.</p>
+
+  <h2>Contact</h2>
+  <p>Questions: <span class="placeholder">[contact@your-domain.org]</span>.</p>
+</div>
+</div>
+<footer class="legal-foot">© <span id="yr"></span> Enjeeoh. <a href="/legal">Legal</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer>
+<script>document.getElementById('yr').textContent=new Date().getFullYear();</script>
+<script src="/site-edit.js" data-page="cookies"></script>
+</body>
+</html>

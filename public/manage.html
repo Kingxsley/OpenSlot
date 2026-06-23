@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Manage your booking · Enjeeoh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="/theme.js"></script>
+<style>
+  :root{--accent:#0F9D7A;--ink:#16182D;--muted:#6B7280;--line:#ECEDF4;--bg:#FBFBFE;--card:#FFF}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif}
+  .wrap{max-width:440px;margin:60px auto;padding:0 20px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px}
+  h1{font:700 22px 'Space Grotesk';margin:0 0 4px}
+  .eyebrow{font:600 12px Inter;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:0 0 10px}
+  .meta{color:var(--muted);font-size:14px}
+  label{display:block;font:600 13px Inter;margin:14px 0 6px}
+  input{width:100%;border:1px solid var(--line);border-radius:9px;padding:11px;font:400 14px Inter;background:var(--bg);color:var(--ink)}
+  button{border:0;border-radius:10px;padding:12px 16px;font:600 14px Inter;cursor:pointer}
+  .go{background:var(--accent);color:#fff} .ghost{background:var(--card);border:1px solid var(--line);color:var(--ink)}
+  .no{background:#fff;color:#991B1B;border:1px solid #FCA5A5}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+  .err{color:#C0392B;font-size:13px;margin-top:10px;min-height:16px}
+  .ok{color:var(--accent)}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <p class="eyebrow">Your booking</p>
+    <div id="view"><h1>Loading…</h1></div>
+  </div>
+</div>
+<script>
+const parts=location.pathname.split('/').filter(Boolean); // manage/:id/:token
+const ID=parts[1], TOKEN=parts[2];
+const base='/api/manage/'+ID+'/'+TOKEN;
+let DATA=null;
+function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':s);return d.innerHTML;}
+async function load(){
+  try{
+    const r=await fetch(base); const d=await r.json(); if(!r.ok) throw new Error(d.error||'Not found'); DATA=d; render();
+  }catch(e){ document.getElementById('view').innerHTML='<h1>Booking not found</h1><p class="meta">'+esc(e.message)+'</p>'; }
+}
+function render(){
+  if(DATA.status==='cancelled'){ document.getElementById('view').innerHTML='<h1>Booking cancelled</h1><p class="meta">This booking has been cancelled. You can make a new one on the booking page.</p>'; return; }
+  document.getElementById('view').innerHTML=
+    '<h1>'+esc(DATA.title)+'</h1>'+
+    '<p class="meta">'+esc(DATA.when)+' · with '+esc(DATA.memberName)+'</p>'+
+    (DATA.locationText?'<p class="meta">'+esc(DATA.locationText)+'</p>':'')+
+    '<div class="row"><button class="ghost" id="rs">Reschedule</button><button class="no" id="cx">Cancel booking</button></div>'+
+    '<div id="rsbox" class="hide" style="margin-top:8px"><label>New date &amp; time</label><input type="datetime-local" id="rsinput"><div class="row" style="margin-top:10px"><button class="go" id="rssave">Save new time</button></div></div>'+
+    '<div class="err" id="err"></div>';
+  document.getElementById('cx').onclick=async()=>{ if(!confirm('Cancel this booking?'))return;
+    const r=await fetch(base+'/cancel',{method:'POST'}); if(r.ok){ DATA.status='cancelled'; render(); } else { document.getElementById('err').textContent='Could not cancel.'; } };
+  document.getElementById('rs').onclick=()=>{ document.getElementById('rsbox').classList.toggle('hide'); };
+  document.getElementById('rssave').onclick=async()=>{
+    const v=document.getElementById('rsinput').value; const err=document.getElementById('err'); err.textContent='';
+    if(!v){ err.textContent='Pick a new date and time.'; return; }
+    const r=await fetch(base+'/reschedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({start:new Date(v).toISOString()})});
+    const d=await r.json(); if(!r.ok){ err.textContent=d.error||'Could not reschedule.'; return; }
+    err.className='err ok'; err.textContent='Done! Your booking was moved. Check your email.'; await load();
+  };
+}
+load();
+</script>
+</body>
+</html>

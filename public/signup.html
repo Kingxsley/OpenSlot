@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Apply for an Enjeeoh account</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--accent:#0F9D7A;--ink:#16182D;--muted:#6B7280;--line:#ECEDF3;--bg:#FBFBFD;--soft:#F3F4F8}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif}
+  .wrap{max-width:560px;margin:0 auto;padding:40px 20px 72px}
+  .eyebrow{font:600 12px Inter;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 10px}
+  h1{font:700 28px 'Space Grotesk';margin:0 0 8px;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:15px;line-height:1.55;margin:0 0 26px}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px}
+  label{display:block;font:600 13px Inter;margin:0 0 6px}
+  .hint{font-weight:400;color:var(--muted)}
+  input,textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 13px;font:400 15px Inter;background:#fff;margin-bottom:16px}
+  input:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 14%,transparent)}
+  textarea{resize:vertical;min-height:72px}
+  .row{display:flex;gap:14px}.row>*{flex:1}
+  button{width:100%;background:var(--accent);color:#fff;border:0;border-radius:11px;padding:13px;font:600 15px Inter;cursor:pointer}
+  button:disabled{opacity:.55}
+  .err{color:#C0392B;font-size:14px;margin-top:10px;min-height:18px}
+  .foot{text-align:center;color:var(--muted);font-size:13px;margin-top:20px}
+  .foot a{color:var(--accent)}
+  .done{text-align:center}
+  .check{width:54px;height:54px;border-radius:50%;background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:26px}
+  .hidden{display:none}
+  .setlink{display:block;font:12px ui-monospace,monospace;color:var(--accent);background:var(--soft);border-radius:8px;padding:10px 12px;word-break:break-all}
+</style>
+<script src="/theme.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div id="form-view">
+    <p class="eyebrow">Free for verified NGOs</p>
+    <h1>Apply for an account</h1>
+    <p class="sub">Enjeeoh is free scheduling for non-profits. Tell us about your organisation. We verify every applicant before activating an account, so your booking page goes live once we have confirmed your details.</p>
+    <div class="panel">
+      <label>Organisation name</label>
+      <input id="orgName" placeholder="e.g. Riverside Community Trust">
+      <div class="row">
+        <div><label>Country</label><input id="country" placeholder="Australia"></div>
+        <div><label>Registration / charity no. <span class="hint">(helps us verify)</span></label><input id="registrationId" placeholder="ABN / ACN / charity ID"></div>
+      </div>
+      <label>Website <span class="hint">(optional)</span></label>
+      <input id="website" placeholder="https://">
+      <label>What does your organisation do?</label>
+      <textarea id="mission" placeholder="A sentence or two about your mission."></textarea>
+      <div class="row">
+        <div><label>Your name</label><input id="contactName" placeholder="Contact person"></div>
+        <div><label>Email</label><input id="email" type="email" placeholder="name@yourorganisation.org" placeholder="you@org.org"></div>
+      </div>
+      <button id="submit">Submit application</button>
+      <p style="font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center">By applying you agree to our <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</p>
+      <div class="err" id="err"></div>
+    </div>
+    <p class="foot">Already have an account? <a href="/admin">Sign in</a></p>
+  </div>
+
+  <div id="done-view" class="hidden">
+    <div class="panel done">
+      <div class="check"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></div>
+      <h1 style="font-size:23px">Application received</h1>
+      <p class="sub" style="margin:10px 0 0">We will verify your organisation's details and email you once your account is approved. When it is live, your booking page and full dashboard become available. Every feature is free.</p><div id="setupArea"></div>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('submit').onclick = async () => {
+  const body = {
+    orgName: orgName.value.trim(), country: country.value.trim(), registrationId: registrationId.value.trim(),
+    website: website.value.trim(), mission: mission.value.trim(),
+    contactName: contactName.value.trim(), email: email.value.trim()
+  };
+  const err = document.getElementById('err'); err.textContent = '';
+  if (!body.orgName || !body.email) { err.textContent = 'Organisation name and email are required.'; return; }
+  const btn = document.getElementById('submit'); btn.disabled = true; btn.textContent = 'Submitting…';
+  try {
+    const r = await fetch('/api/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    document.getElementById('form-view').classList.add('hidden');
+    document.getElementById('done-view').classList.remove('hidden');
+    if(data.setupUrl){var s=document.getElementById('setupArea');if(s){s.innerHTML = data.emailed ? '<p class="sub" style="margin:14px 0 0">We have emailed you a link to set your password.</p>' : '<p class="sub" style="margin:14px 0 6px">Set your password to access your dashboard:</p><a class="setlink" href="'+data.setupUrl+'">'+data.setupUrl+'</a>';}}
+  } catch (e) { err.textContent = e.message; btn.disabled = false; btn.textContent = 'Submit application'; }
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Book a time</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--accent:#0F9D7A;--ink:#16182D;--muted:#6B7280;--line:#ECEDF3;--surface:#fff;--bg:#FBFBFD;--soft:#F3F4F8}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:760px;margin:0 auto;padding:32px 20px 64px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+  .head{padding:28px 28px 22px;border-bottom:1px solid var(--line)}
+  .eyebrow{font:600 12px Inter;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 10px}
+  h1{font:700 26px 'Space Grotesk';margin:0 0 6px;letter-spacing:-.01em}
+  .dur{color:var(--muted);font-size:14px;margin:0;display:flex;align-items:center;gap:7px}
+  .dot{width:5px;height:5px;border-radius:50%;background:var(--muted);display:inline-block}
+  .body{padding:24px 28px 28px}
+  .label{font:600 13px Inter;margin:0 0 10px;display:block}
+  .pickrow{border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:10px;cursor:pointer;transition:.12s;display:flex;align-items:center;gap:14px}
+  .pickrow:hover{border-color:var(--accent)}
+  .av{width:40px;height:40px;border-radius:50%;background:var(--soft);display:flex;align-items:center;justify-content:center;font:600 15px 'Space Grotesk';color:var(--accent)}
+  .pickrow h3{margin:0 0 2px;font:600 16px 'Space Grotesk'} .pickrow p{margin:0;color:var(--muted);font-size:13px}
+  .dates{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:22px}
+  .date-btn{flex:0 0 auto;min-width:60px;text-align:center;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 6px;cursor:pointer;transition:.12s}
+  .date-btn:hover{border-color:var(--accent)} .date-btn.sel{background:var(--ink);border-color:var(--ink);color:#fff}
+  .date-btn .dow{font-size:11px;color:var(--muted);text-transform:uppercase} .date-btn.sel .dow{color:rgba(255,255,255,.65)}
+  .date-btn .num{font:700 18px 'Space Grotesk';margin-top:3px}
+  .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+  .slot{border:1px solid var(--line);background:var(--surface);border-radius:11px;padding:12px 8px;font:600 14px Inter;cursor:pointer;transition:.12s}
+  .slot:hover{border-color:var(--accent);color:var(--accent)}
+  .empty{color:var(--muted);font-size:14px;padding:24px 0;text-align:center}
+  .field{margin-bottom:16px}
+  .field input,.field textarea{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 14px;font:400 15px Inter;background:var(--surface)}
+  .field input:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
+  .field textarea{resize:vertical;min-height:74px}
+  .chosen{background:var(--soft);border-radius:12px;padding:14px 16px;margin-bottom:20px;font-size:14px}
+  .cta{width:100%;background:var(--accent);color:#fff;border:0;border-radius:12px;padding:14px;font:600 15px Inter;cursor:pointer}
+  .cta:disabled{opacity:.55}
+  .back{background:none;border:0;color:var(--muted);font:500 14px Inter;cursor:pointer;padding:0;margin-bottom:16px}
+  .done{text-align:center;padding:14px 0}
+  .check{width:54px;height:54px;border-radius:50%;background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:26px}
+  .addcal{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px}
+  .addcal a{text-decoration:none;border:1px solid var(--line);border-radius:10px;padding:9px 14px;font:600 13px Inter;color:var(--ink)}
+  .err{color:#C0392B;font-size:14px;margin-top:10px;min-height:18px}
+  .foot{text-align:center;color:var(--muted);font-size:12px;margin-top:18px}
+  .skel{height:46px;border-radius:11px;background:var(--soft)}
+  @media (max-width:600px){
+    .wrap,.card{padding-left:14px;padding-right:14px}
+    pre,code{white-space:pre-wrap;word-break:break-all}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="head">
+      <p class="eyebrow" id="eyebrow">Schedule</p>
+      <h1 id="title">Loading…</h1>
+      <p class="dur" id="dur"></p>
+    </div>
+    <div id="welcome" style="display:none;color:var(--muted);font-size:14px;margin-bottom:6px"></div>
+    <div class="body" id="step-services" style="display:none">
+      <span class="label" id="lbl-service">What would you like to book?</span>
+      <div id="services"></div>
+    </div>
+    <div class="body" id="step-coaches" style="display:none">
+      <button class="back" id="back-services" style="display:none">Other services</button>
+      <div id="svc-intro" style="margin-bottom:14px"></div>
+      <span class="label">Our team for this service</span>
+      <div id="coaches"></div>
+      <button class="cta" id="to-times" style="margin-top:14px">See available times</button>
+    </div>
+    <div class="body" id="step-members" style="display:none">
+      <span class="label" id="lbl-team">Who would you like to meet?</span>
+      <div id="members"></div>
+    </div>
+    <div class="body" id="step-types" style="display:none">
+      <button class="back" id="back-members" style="display:none">Back to team</button>
+      <span class="label">Choose what to book</span>
+      <div id="types"></div>
+    </div>
+    <div class="body" id="step-pick" style="display:none">
+      <button class="back" id="back-types" style="display:none">Other meeting types</button>
+      <span class="label" id="lbl-day">Pick a day</span>
+      <div class="dates" id="dates"></div>
+      <span class="label"><span id="lbl-times">Available times</span> <span id="tz" style="color:var(--muted);font-weight:400"></span></span>
+      <div class="slots" id="slots"></div>
+    </div>
+    <div class="body" id="step-details" style="display:none">
+      <button class="back" id="back">Change time</button>
+      <div class="chosen" id="chosen"></div>
+      <div id="intake-fields"></div>
+      <div class="field"><input id="name" placeholder="Your name"></div>
+      <div class="field"><input id="email" type="email" placeholder="Your email"></div>
+      <div class="field"><input id="phone" placeholder="Phone (optional, for reminders)"></div>
+      <div class="field"><textarea id="notes" placeholder="Anything you'd like to share? (optional)"></textarea></div>
+      <button class="cta" id="confirm">Confirm booking</button>
+      <p style="font-size:12px;opacity:.7;margin:10px 0 0;text-align:center">🔒 Private &amp; secure · no account needed · we don't track you. Your details are used only to manage this booking. <a href="/privacy" target="_blank" style="color:inherit">Privacy</a>.</p>
+      <div class="err" id="err"></div>
+    </div>
+    <div class="body" id="step-done" style="display:none">
+      <div class="done">
+        <div class="check"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></div>
+        <h1 style="font-size:22px" id="lbl-thankyou">You're booked</h1>
+        <p class="dur" id="done-when" style="justify-content:center"></p>
+        <p id="done-note" style="color:var(--muted);font-size:14px;display:none"></p>
+        <p style="color:var(--muted);font-size:14px" id="done-loc"></p>
+        <div class="addcal" id="addcal"></div>
+      </div>
+    </div>
+  </div>
+  <p class="foot" id="foot"></p>
+</div>
+<script>
+let ORG=null, MEMBER=null, EVSLUG=null, MEMBERNAME='';
+let cfg={brandColor:'#0F9D7A',showBranding:true,timezone:'Australia/Melbourne',orgName:''};
+let chosenSlot=null;
+let MODE='member'; // 'member' (v1) or 'service' (v2)
+let SERVICE=null, SERVICEDATA=null, chosenCoach=null;
+function show(s){ ['services','coaches','members','types','pick','details','done'].forEach(x=>document.getElementById('step-'+x).style.display=x===s?'block':'none'); }
+function setAccent(c){ document.documentElement.style.setProperty('--accent',c); }
+// Org-customised booking-page wording (set no-code in the dashboard), with defaults.
+function bp(key,def){ const v=(cfg.bookingPage||{})[key]; return (v&&v.trim())?v:def; }
+function setLabel(sel,key,def){ const el=document.querySelector(sel); if(el) el.textContent=bp(key,def); }
+function initials(n){ return (n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
+function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':s);return d.innerHTML;}
+// An avatar that shows a coach photo when set, otherwise their initials.
+function avatar(name,img){ return img? `<div class="av" style="background-image:url('${esc(img)}');background-size:cover;background-position:center"></div>` : `<div class="av">${initials(name)}</div>`; }
+
+async function init(){
+  const parts = location.pathname.split('/').filter(Boolean); // book/org/member/event OR empty (custom host)
+  if(parts[0]==='book'){ ORG=parts[1]; MEMBER=parts[2]||null; EVSLUG=parts[3]||null; }
+  if(!ORG){ try{ const r=await (await fetch('/api/resolve-host')).json(); ORG=r.orgSlug; }catch(e){} }
+  if(!ORG){ document.getElementById('title').textContent='Not found'; document.getElementById('dur').textContent='No organisation for this address.'; return; }
+  try{ cfg = await (await fetch(`/api/biz/${ORG}/config`)).json(); }catch(e){}
+  if(cfg.error){ document.getElementById('title').textContent='Not available'; document.getElementById('dur').textContent=cfg.error; return; }
+  setAccent(cfg.brandColor);
+  document.getElementById('eyebrow').textContent = cfg.orgName||'Schedule';
+  // Apply the org's no-code booking-page wording (falls back to defaults).
+  setLabel('#lbl-service','servicePrompt','What would you like to book?');
+  setLabel('#lbl-team','teamPrompt','Who would you like to meet?');
+  setLabel('#lbl-day','dayPrompt','Pick a day');
+  setLabel('#lbl-times','timesLabel','Available times');
+  setLabel('#confirm','confirmButton','Confirm booking');
+  setLabel('#lbl-thankyou','thankYouHeading',"You're booked");
+  const wel=bp('welcome',''); if(wel){ const w=document.getElementById('welcome'); w.textContent=wel; w.style.display='block'; }
+  if(cfg.showBranding) document.getElementById('foot').innerHTML='Powered by <a href="/" style="text-decoration:none">Enjeeoh</a> · free for NGOs';
+  // v2: if this org offers multi-coach services and no specific member/event was
+  // requested in the URL, lead with the service chooser.
+  if(cfg.hasServices && !MEMBER && !EVSLUG){ loadServices(); return; }
+  if(MEMBER) startTypes(); else loadMembers();
+}
+
+// ---- v2 service flow ----
+async function loadServices(){
+  const data = await (await fetch(`/api/biz/${ORG}/services`)).json();
+  const svcs = data.services||[];
+  if(!svcs.length){ loadMembers(); return; }
+  document.getElementById('title').textContent = bp('headline', cfg.orgName);
+  document.getElementById('dur').innerHTML='<span class="dot"></span> choose a service';
+  const el=document.getElementById('services'); el.innerHTML='';
+  svcs.forEach(s=>{
+    const d=document.createElement('div'); d.className='pickrow';
+    d.innerHTML=`${avatar(s.name,s.imageUrl)}<div><h3>${esc(s.name)}</h3><p>${s.durationMins} min · ${s.coachCount} ${s.coachCount===1?'person':'people'}${s.description?' · '+esc(s.description):''}</p></div>`;
+    d.onclick=()=>startService(s.slug);
+    el.appendChild(d);
+  });
+  show('services');
+}
+async function startService(slug){
+  const r=await fetch(`/api/biz/${ORG}/services/${slug}`); const data=await r.json(); if(!r.ok){ return; }
+  SERVICE=slug; SERVICEDATA=data; MODE='service';
+  document.getElementById('title').textContent=data.service.name;
+  document.getElementById('dur').innerHTML=`<span class="dot"></span> ${data.service.durationMins} min`;
+  document.getElementById('svc-intro').innerHTML=(data.service.intro?`<p style="color:var(--muted);font-size:14px;margin:0 0 8px">${esc(data.service.intro)}</p>`:'')+(data.service.description?`<p style="margin:0">${esc(data.service.description)}</p>`:'');
+  const cs=document.getElementById('coaches'); cs.innerHTML='';
+  (data.coaches||[]).forEach(c=>{
+    const d=document.createElement('div'); d.className='pickrow'; d.style.cursor='default';
+    d.innerHTML=`${avatar(c.name,c.imageUrl)}<div><h3>${esc(c.name)}</h3><p>${c.title?esc(c.title):'Team member'}${c.bio?' · '+esc(c.bio):''}</p></div>`;
+    cs.appendChild(d);
+  });
+  document.getElementById('back-services').style.display = (cfg.hasServices)?'inline':'none';
+  show('coaches');
+}
+document.getElementById('back-services').onclick=()=>{ MODE='member'; loadServices(); };
+document.getElementById('to-times').onclick=()=>{ startPick(); };
+async function loadServiceSlots(date){
+  const slotsEl=document.getElementById('slots'); slotsEl.innerHTML='<div class="skel"></div><div class="skel"></div><div class="skel"></div>';
+  try{
+    const r=await fetch(`/api/biz/${ORG}/services/${SERVICE}/slots?date=${date}`); const data=await r.json(); if(!r.ok) throw new Error(data.error);
+    document.getElementById('title').textContent=SERVICEDATA.service.name;
+    document.getElementById('dur').innerHTML=`<span class="dot"></span> ${data.service.durationMins} min`;
+    document.getElementById('tz').textContent='· '+data.timezone;
+    const isGroup=SERVICEDATA.service.isGroup;
+    if(!data.slots.length){
+      slotsEl.innerHTML='<div class="empty" style="margin-bottom:10px">No times available this day. Try another'+(SERVICEDATA.service.waitlistEnabled?', or join the waitlist below.':'.')+'</div>';
+      if(SERVICEDATA.service.waitlistEnabled) renderWaitlist(date, slotsEl);
+      return;
+    }
+    slotsEl.innerHTML=''; data.slots.forEach(s=>{ const b=document.createElement('button'); b.className='slot'; const sub=isGroup?`${s.seats} spot${s.seats===1?'':'s'} left`:`${s.coaches.length} available`; b.innerHTML=`${esc(s.label)}<span style="display:block;font-size:11px;opacity:.6">${sub}</span>`; b.onclick=()=>chooseServiceSlot(s); slotsEl.appendChild(b); });
+  }catch(e){ slotsEl.innerHTML=`<div class="empty">${e.message||'Could not load times.'}</div>`; }
+}
+function renderWaitlist(date,container){
+  const box=document.createElement('div'); box.style.cssText='border:1px dashed var(--line);border-radius:12px;padding:14px;margin-top:8px';
+  box.innerHTML='<div style="font-weight:600;margin-bottom:8px">Join the waitlist</div><div class="field"><input id="wl-name" placeholder="Your name"></div><div class="field"><input id="wl-email" type="email" placeholder="Your email"></div><button class="cta" id="wl-join">Notify me if a spot opens</button><div class="err" id="wl-err"></div>';
+  container.appendChild(box);
+  document.getElementById('wl-join').onclick=async()=>{
+    const err=document.getElementById('wl-err'); err.textContent='';
+    const name=document.getElementById('wl-name').value.trim(), email=document.getElementById('wl-email').value.trim();
+    if(!name||!email){ err.textContent='Please add your name and email.'; return; }
+    const r=await fetch(`/api/biz/${ORG}/services/${SERVICE}/waitlist`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,date})});
+    const d=await r.json(); if(!r.ok){ err.textContent=d.error||'Could not join.'; return; }
+    box.innerHTML='<div class="ok" style="color:var(--accent);font-weight:600">'+esc(d.message)+'</div>';
+  };
+}
+// Build the service's intake questions into the details form.
+function renderIntakeFields(){
+  const box=document.getElementById('intake-fields'); box.innerHTML='';
+  if(MODE!=='service') return;
+  (SERVICEDATA.service.intakeQuestions||[]).forEach(q=>{
+    const wrap=document.createElement('div'); wrap.className='field';
+    const lab=`<label style="display:block;font-weight:600;font-size:13px;margin-bottom:5px">${esc(q.label)}${q.required?' *':''}</label>`;
+    let input;
+    if(q.type==='textarea') input=`<textarea data-q="${esc(q.id)}" placeholder="Your answer"></textarea>`;
+    else if(q.type==='select') input=`<select data-q="${esc(q.id)}" style="width:100%"><option value="">Choose…</option>${(q.options||[]).map(o=>`<option>${esc(o)}</option>`).join('')}</select>`;
+    else input=`<input data-q="${esc(q.id)}" placeholder="Your answer">`;
+    wrap.innerHTML=lab+input; box.appendChild(wrap);
+  });
+}
+function chooseServiceSlot(slot){
+  chosenSlot=slot; chosenCoach=null;
+  const mode=SERVICEDATA.service.assignMode;
+  // If several coaches are free and the service lets the visitor choose, ask who.
+  if(mode==='choose' && slot.coaches.length>1){
+    const slotsEl=document.getElementById('slots');
+    slotsEl.innerHTML=`<div class="empty" style="margin-bottom:8px">${esc(slot.label)} — choose who with:</div>`;
+    slot.coaches.forEach(c=>{ const d=document.createElement('div'); d.className='pickrow'; d.innerHTML=`${avatar(c.name,c.imageUrl)}<div><h3>${esc(c.name)}</h3><p>${c.title?esc(c.title):'Available'}</p></div>`; d.onclick=()=>{ chosenCoach=c; goServiceDetails(slot,c); }; slotsEl.appendChild(d); });
+    return;
+  }
+  // Otherwise auto-assign (the server picks among those free).
+  goServiceDetails(slot, slot.coaches.length===1?slot.coaches[0]:null);
+}
+function goServiceDetails(slot,coach){
+  const d=new Date(slot.start);
+  const who = coach? ('with '+esc(coach.name)) : 'with the next available person';
+  document.getElementById('chosen').innerHTML=`<b>${esc(slot.label)}</b> · ${d.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'})} · ${who}`;
+  renderIntakeFields();
+  show('details');
+}
+
+async function loadMembers(){
+  const members = await (await fetch(`/api/biz/${ORG}/members`)).json();
+  if(members.length===1){ MEMBER=members[0].slug; MEMBERNAME=members[0].name; startTypes(); return; }
+  document.getElementById('title').textContent = bp('headline', cfg.orgName);
+  document.getElementById('dur').innerHTML = '<span class="dot"></span> choose a team member';
+  const el=document.getElementById('members'); el.innerHTML='';
+  members.forEach(m=>{
+    const d=document.createElement('div'); d.className='pickrow';
+    d.innerHTML=`<div class="av">${initials(m.name)}</div><div><h3>${m.name}</h3><p>${m.role==='admin'?'Organiser':'Team member'}</p></div>`;
+    d.onclick=()=>{ MEMBER=m.slug; MEMBERNAME=m.name; document.getElementById('back-members').style.display='inline'; startTypes(); };
+    el.appendChild(d);
+  });
+  show('members');
+}
+document.getElementById('back-members').onclick=()=>{ MEMBER=null; EVSLUG=null; loadMembers(); };
+
+async function startTypes(){
+  const data = await (await fetch(`/api/biz/${ORG}/m/${MEMBER}/event-types`)).json();
+  MEMBERNAME = data.member?.name || MEMBERNAME;
+  if(EVSLUG){ startPick(); return; }
+  if(data.eventTypes.length===1){ EVSLUG=data.eventTypes[0].slug; startPick(); return; }
+  document.getElementById('title').textContent = MEMBERNAME;
+  document.getElementById('dur').innerHTML='<span class="dot"></span> select a meeting type';
+  const el=document.getElementById('types'); el.innerHTML='';
+  data.eventTypes.forEach(t=>{
+    const d=document.createElement('div'); d.className='pickrow';
+    d.innerHTML=`<div><h3>${t.title}</h3><p>${t.durationMins} min${t.description?' · '+t.description:''}</p></div>`;
+    d.onclick=()=>{ EVSLUG=t.slug; document.getElementById('back-types').style.display='inline'; startPick(); };
+    el.appendChild(d);
+  });
+  show('types');
+}
+document.getElementById('back-types').onclick=()=>{ EVSLUG=null; startTypes(); };
+
+function startPick(){ show('pick'); buildDates(); }
+function loadSlotsFor(iso){ return MODE==='service'? loadServiceSlots(iso) : loadSlots(iso); }
+function buildDates(){
+  const el=document.getElementById('dates'); el.innerHTML=''; const today=new Date();
+  for(let i=0;i<14;i++){
+    const d=new Date(today); d.setDate(today.getDate()+i); const iso=d.toISOString().slice(0,10);
+    const b=document.createElement('button'); b.className='date-btn';
+    b.innerHTML=`<div class="dow">${d.toLocaleDateString('en-AU',{weekday:'short'})}</div><div class="num">${d.getDate()}</div>`;
+    b.onclick=()=>{ document.querySelectorAll('.date-btn').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); loadSlotsFor(iso); };
+    el.appendChild(b); if(i===0){ b.classList.add('sel'); loadSlotsFor(iso); }
+  }
+}
+async function loadSlots(date){
+  const slotsEl=document.getElementById('slots'); slotsEl.innerHTML='<div class="skel"></div><div class="skel"></div><div class="skel"></div>';
+  try{
+    const r=await fetch(`/api/biz/${ORG}/m/${MEMBER}/slots/${EVSLUG}?date=${date}`); const data=await r.json(); if(!r.ok) throw new Error(data.error);
+    document.getElementById('title').textContent=data.event.title;
+    document.getElementById('dur').innerHTML=`<span class="dot"></span> ${data.event.durationMins} min with ${data.member?.name||MEMBERNAME}`;
+    document.getElementById('tz').textContent='· '+data.timezone;
+    if(!data.slots.length){ slotsEl.innerHTML='<div class="empty">No times available this day. Try another.</div>'; return; }
+    slotsEl.innerHTML=''; data.slots.forEach(s=>{ const b=document.createElement('button'); b.className='slot'; b.textContent=s.label; b.onclick=()=>chooseSlot(s); slotsEl.appendChild(b); });
+  }catch(e){ slotsEl.innerHTML=`<div class="empty">${e.message||'Could not load times.'}</div>`; }
+}
+function chooseSlot(slot){
+  chosenSlot=slot; chosenCoach=null; const d=new Date(slot.start);
+  document.getElementById('intake-fields').innerHTML='';
+  document.getElementById('chosen').innerHTML=`<b>${slot.label}</b> · ${d.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'})} · with ${esc(MEMBERNAME)}`;
+  show('details');
+}
+document.getElementById('back').onclick=()=>show('pick');
+document.getElementById('confirm').onclick=async()=>{
+  const name=document.getElementById('name').value.trim(), email=document.getElementById('email').value.trim(), notes=document.getElementById('notes').value.trim(), phone=document.getElementById('phone').value.trim();
+  const err=document.getElementById('err'); err.textContent='';
+  if(!name||!email){ err.textContent='Please add your name and email.'; return; }
+  // gather intake answers (service mode)
+  const intake={}; let missing='';
+  document.querySelectorAll('#intake-fields [data-q]').forEach(el=>{ intake[el.getAttribute('data-q')]=el.value.trim(); });
+  if(MODE==='service'){ (SERVICEDATA.service.intakeQuestions||[]).forEach(q=>{ if(q.required && !intake[q.id]) missing=missing||q.label; }); }
+  if(missing){ err.textContent='Please answer: '+missing; return; }
+  const btn=document.getElementById('confirm'); btn.disabled=true; btn.textContent='Booking…';
+  try{
+    const url = MODE==='service' ? `/api/biz/${ORG}/services/${SERVICE}/bookings` : `/api/biz/${ORG}/m/${MEMBER}/bookings`;
+    const payload = MODE==='service' ? {start:chosenSlot.start,name,email,phone,notes,coachSlug:chosenCoach?chosenCoach.slug:undefined,intake} : {evslug:EVSLUG,start:chosenSlot.start,name,email,phone,notes};
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const data=await r.json();
+    if(!r.ok){ if(data.full){ btn.disabled=false; btn.textContent=bp('confirmButton','Confirm booking'); show('pick'); err.textContent=data.error; return; } throw new Error(data.error); }
+    document.getElementById('done-when').innerHTML=`<span class="dot"></span> ${data.booking.when}`;
+    document.getElementById('done-loc').textContent=`with ${data.booking.memberName} · ${data.booking.locationText||''}`;
+    const note=bp('thankYouNote',''); const nEl=document.getElementById('done-note'); if(note){ nEl.textContent=note; nEl.style.display='block'; }
+    document.getElementById('addcal').innerHTML=`<a href="${data.addToCalendar.google}" target="_blank">Add to Google</a><a href="${data.addToCalendar.outlook}" target="_blank">Add to Outlook</a><a href="${data.addToCalendar.ics}">Download .ics</a>${data.manageUrl?`<a href="${data.manageUrl}">Reschedule / cancel</a>`:''}`;
+    document.getElementById('eyebrow').textContent='Confirmed'; show('done');
+  }catch(e){ err.textContent=e.message; btn.disabled=false; btn.textContent=bp('confirmButton','Confirm booking'); }
+};
+init();
+</script>
+</body>
+</html>

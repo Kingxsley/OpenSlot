@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Edit landing page, Enjeeoh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--accent:#0F9D7A;--accent2:#11B98F;--bg:#FBFBFE;--fg:#15162A;--muted:#6C6F84;--card:#FFFFFF;--line:#ECEDF4;--soft:#F4F4FA;
+    --panel:#FFF;--panel-fg:#15162A;--panel-line:#E7E8F0;--shadow:0 24px 60px rgba(12,14,40,.16);--anim-name:fadeUp}
+  .dark{--bg:#0C0D17;--fg:#F3F4FB;--muted:#9DA1B8;--card:#16182A;--line:#242639;--soft:#1B1D2E;--panel:#16182A;--panel-fg:#F3F4FB;--panel-line:#262840;--shadow:0 24px 60px rgba(0,0,0,.5)}
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:var(--bg);color:var(--fg);font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .editbar{position:fixed;top:0;left:0;right:0;height:46px;background:var(--panel);border-bottom:1px solid var(--panel-line);display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:50;color:var(--panel-fg)}
+  .editbar .lhs{display:flex;align-items:center;gap:10px;font:600 13px Inter}
+  .live{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 20%,transparent)}
+  .btn{border:0;border-radius:9px;padding:8px 15px;font:600 13px Inter;cursor:pointer}
+  .btn-save{background:var(--accent);color:#fff} .btn-ghost{background:transparent;border:1px solid var(--panel-line);color:var(--panel-fg)}
+  .page{max-width:1080px;margin:0 auto;padding:96px 28px 60px;position:relative}
+  .glow{position:absolute;top:10px;right:-40px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 24%,transparent),transparent 68%);filter:blur(10px);pointer-events:none;z-index:0}
+  .hero{position:relative;z-index:1;max-width:560px}
+  .badge{display:inline-block;font:600 11px Inter;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 32%,var(--line));border-radius:30px;padding:7px 14px;background:color-mix(in srgb,var(--accent) 8%,transparent)}
+  h1{font:700 52px/1.06 'Space Grotesk',system-ui,sans-serif;letter-spacing:-.025em;margin:20px 0 16px}
+  h1 .g{background:linear-gradient(105deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .sub{font:400 18px/1.55 Inter;color:var(--muted);max-width:460px;margin:0 0 30px}
+  .cta{display:flex;gap:12px;flex-wrap:wrap}
+  .b1{background:var(--accent);color:#fff;border:0;border-radius:12px;padding:14px 26px;font:600 15px Inter;box-shadow:0 8px 22px color-mix(in srgb,var(--accent) 38%,transparent)}
+  .b2{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:14px 26px;font:600 15px Inter}
+  .floatcard{position:absolute;right:18px;top:120px;width:230px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow);z-index:2}
+  .av{width:34px;height:34px;border-radius:50%;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);display:flex;align-items:center;justify-content:center;font:600 13px 'Space Grotesk';margin-bottom:10px}
+  .floatcard h4{margin:0 0 2px;font:600 15px 'Space Grotesk'} .floatcard p{margin:0 0 12px;font:400 12px Inter;color:var(--muted)}
+  .cal{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .cal span{aspect-ratio:1;border-radius:7px;background:var(--soft);display:flex;align-items:center;justify-content:center;font:600 11px Inter;color:var(--muted)} .cal span.on{background:var(--accent);color:#fff}
+  .confirm{margin-top:12px;display:flex;align-items:center;gap:7px;font:600 12px Inter;color:var(--accent)}
+  .feat{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:54px;position:relative;z-index:1}
+  .fcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
+  .fcard .ic{width:30px;height:30px;color:var(--accent);margin-bottom:12px}
+  .fcard h5{margin:0 0 6px;font:600 15px 'Space Grotesk'} .fcard p{margin:0;font:400 13px/1.55 Inter;color:var(--muted)}
+  [contenteditable]{outline:none;border-radius:6px;transition:box-shadow .15s,background .15s;cursor:text}
+  [contenteditable]:hover{box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 22%,transparent)}
+  [contenteditable]:focus{box-shadow:0 0 0 2px var(--accent);background:color-mix(in srgb,var(--accent) 6%,transparent)}
+  .panel{position:fixed;right:18px;bottom:18px;width:300px;background:var(--panel);color:var(--panel-fg);border:1px solid var(--panel-line);border-radius:18px;box-shadow:var(--shadow);z-index:60;overflow:hidden;transition:transform .25s}
+  .panel.min{transform:translateY(calc(100% - 50px))}
+  .phead{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--panel-line)}
+  .phead h3{margin:0;font:600 14px 'Space Grotesk'}
+  .pbody{padding:16px;max-height:60vh;overflow:auto}
+  .grp{margin-bottom:18px} .grp:last-child{margin-bottom:0}
+  .glab{font:600 10px Inter;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:9px}
+  .sw{display:flex;gap:9px;flex-wrap:wrap}
+  .dot{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .12s,border-color .12s} .dot:hover{transform:scale(1.1)} .dot.on{border-color:var(--panel-fg);transform:scale(1.1)}
+  .chips{display:flex;gap:7px;flex-wrap:wrap}
+  .chip{border:1px solid var(--panel-line);background:transparent;color:var(--muted);border-radius:9px;padding:8px 13px;font:500 13px Inter;cursor:pointer;transition:.12s} .chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--fg);color:var(--bg);padding:11px 20px;border-radius:11px;font:600 13px Inter;opacity:0;transition:.3s;z-index:80;pointer-events:none} .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .an{opacity:0} .play .an{animation:var(--anim-name,fadeUp) .6s cubic-bezier(.2,.7,.2,1) forwards;animation-delay:var(--d)} .an-none .an{opacity:1;animation:none}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}} @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes zoomIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:none}} @keyframes slideIn{from{opacity:0;transform:translateX(-26px)}to{opacity:1;transform:none}}
+  @keyframes blurIn{from{opacity:0;filter:blur(12px)}to{opacity:1;filter:blur(0)}}
+  @keyframes popIn{0%{opacity:0;transform:scale(.82)}60%{opacity:1;transform:scale(1.04)}100%{transform:scale(1)}}
+  @keyframes clipUp{from{opacity:0;clip-path:inset(45% 0 0 0);transform:translateY(14px)}to{opacity:1;clip-path:inset(0 0 0 0);transform:none}}
+  @keyframes riseBlur{from{opacity:0;transform:translateY(26px);filter:blur(8px)}to{opacity:1;transform:none;filter:blur(0)}}
+  @keyframes flipIn{from{opacity:0;transform:perspective(600px) rotateX(-20deg) translateY(12px)}to{opacity:1;transform:none}}
+  .login{position:fixed;inset:0;background:var(--bg);z-index:90;display:flex;align-items:center;justify-content:center;padding:20px}
+  .login .box{width:360px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px}
+  .login h2{margin:0 0 4px;font:700 20px 'Space Grotesk'} .login p{margin:0 0 18px;color:var(--muted);font-size:14px}
+  .login input{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 13px;font:400 14px Inter;margin-bottom:12px;background:var(--bg);color:var(--fg)}
+  .login button{width:100%;background:var(--accent);color:#fff;border:0;border-radius:10px;padding:12px;font:600 14px Inter;cursor:pointer}
+  .err{color:#C0392B;font-size:13px;margin-top:8px;min-height:16px}
+  @media (max-width:760px){h1{font-size:38px} .floatcard{display:none} .feat{grid-template-columns:1fr} .panel{left:18px;width:auto}}
+</style>
+</head>
+<body>
+  <div class="login" id="login">
+    <div class="box">
+      <h2>Edit landing page</h2><p>Sign in with your reviewer login to edit the public marketing page.</p>
+      <input id="le" type="email" placeholder="Reviewer email"><input id="lp" type="password" placeholder="Password">
+      <button id="lbtn">Sign in</button><div class="err" id="lerr"></div>
+    </div>
+  </div>
+
+  <div class="editbar"><div class="lhs"><span class="live"></span> Editing your landing page</div>
+    <div><button class="btn btn-ghost" id="previewBtn">Preview</button> <button class="btn btn-save" id="saveBtn">Save and publish</button></div></div>
+
+  <div class="page play" id="page">
+    <div class="glow"></div>
+    <div class="floatcard an" style="--d:.45s"><div class="av">JC</div><h4>Intro call</h4><p>Thursday, 2:30 pm</p>
+      <div class="cal"><span>M</span><span>T</span><span class="on">W</span><span>T</span><span>9</span><span>10</span><span class="on">11</span><span>1</span></div>
+      <div class="confirm"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg> Confirmed</div></div>
+    <div class="hero">
+      <span class="badge an" id="badge" contenteditable="true" style="--d:0s"></span>
+      <h1 class="an" style="--d:.08s"><span class="g" id="headLead" contenteditable="true"></span> <span id="headRest" contenteditable="true"></span></h1>
+      <p class="sub an" id="sub" contenteditable="true" style="--d:.16s"></p>
+      <div class="cta an" style="--d:.24s"><button class="b1" id="cta1" contenteditable="true"></button><button class="b2" id="cta2" contenteditable="true"></button></div>
+    </div>
+    <div class="feat" id="feat"></div>
+  </div>
+
+  <div class="panel" id="panel">
+    <div class="phead" id="phead"><h3>Design</h3><span style="color:var(--muted);font-size:18px" id="chev">_</span></div>
+    <div class="pbody">
+      <div class="grp"><span class="glab">Accent colour</span><div class="sw" id="sw"></div></div>
+      <div class="grp"><span class="glab">Theme</span><div class="chips" id="theme"></div></div>
+      <div class="grp"><span class="glab">Entrance animation</span><div class="chips" id="anim"></div></div>
+      <div class="grp"><button class="btn btn-ghost" id="replay" style="width:100%">Replay animation</button></div>
+    </div>
+  </div>
+  <div class="toast" id="toast">Saved</div>
+
+<script>
+var ICONS=[
+ '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 4a3 3 0 0 1 0 6"/><path d="M21 20a6 6 0 0 0-3-5"/></svg>',
+ '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l5-3v10l-5-3z"/><rect x="3" y="6" width="12" height="12" rx="2"/></svg>',
+ '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18z"/></svg>'];
+var root=document.documentElement, page=document.getElementById('page');
+var state={accent:'#0F9D7A',accent2:'#11B98F',theme:'light',anim:'fadeUp'};
+function getCsrf(){var m=document.cookie.match(/(?:^|; )csrf=([^;]+)/);return m?decodeURIComponent(m[1]):'';}
+var colors=[['#0F9D7A','#11B98F'],['#4F46E5','#8B7CFF'],['#7C3AED','#B388FF'],['#E11D66','#FF6FA3'],['#D97706','#FFB45C'],['#059669','#34D399'],['#0284C7','#38BDF8'],['#334155','#7889A8']];
+var anims=[['Fade up','fadeUp'],['Fade in','fadeIn'],['Zoom','zoomIn'],['Slide','slideIn'],['Blur','blurIn'],['Pop','popIn'],['Reveal','clipUp'],['Rise blur','riseBlur'],['Flip','flipIn'],['None','none']];
+
+function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+function play(){page.classList.remove('play');void page.offsetWidth;page.classList.add('play');}
+function applyDesign(){root.style.setProperty('--accent',state.accent);root.style.setProperty('--accent2',state.accent2);
+  root.style.setProperty('--anim-name',state.anim==='none'?'none':state.anim);
+  document.body.classList.toggle('dark',state.theme==='dark');page.classList.toggle('an-none',state.anim==='none');}
+
+// build panel
+var sw=document.getElementById('sw');
+colors.forEach(function(c){var d=document.createElement('div');d.className='dot';d.style.background='linear-gradient(135deg,'+c[0]+','+c[1]+')';
+  d.onclick=function(){state.accent=c[0];state.accent2=c[1];sw.querySelectorAll('.dot').forEach(function(x){x.classList.remove('on')});d.classList.add('on');applyDesign();};
+  d._c=c;sw.appendChild(d);});
+var theme=document.getElementById('theme');
+[['Light','light'],['Dark','dark']].forEach(function(t){var b=document.createElement('button');b.className='chip';b.textContent=t[0];b._v=t[1];
+  b.onclick=function(){state.theme=t[1];theme.querySelectorAll('.chip').forEach(function(x){x.classList.remove('on')});b.classList.add('on');applyDesign();};theme.appendChild(b);});
+var anim=document.getElementById('anim');
+anims.forEach(function(a){var b=document.createElement('button');b.className='chip';b.textContent=a[0];b._v=a[1];
+  b.onclick=function(){state.anim=a[1];anim.querySelectorAll('.chip').forEach(function(x){x.classList.remove('on')});b.classList.add('on');applyDesign();play();};anim.appendChild(b);});
+function markPanel(){
+  sw.querySelectorAll('.dot').forEach(function(d){d.classList.toggle('on',d._c[0].toLowerCase()===state.accent.toLowerCase());});
+  theme.querySelectorAll('.chip').forEach(function(b){b.classList.toggle('on',b._v===state.theme);});
+  anim.querySelectorAll('.chip').forEach(function(b){b.classList.toggle('on',b._v===state.anim);});
+}
+document.getElementById('phead').onclick=function(){var p=document.getElementById('panel');p.classList.toggle('min');document.getElementById('chev').textContent=p.classList.contains('min')?'^':'_';};
+document.getElementById('replay').onclick=play;
+var editing=true;
+document.getElementById('previewBtn').onclick=function(){editing=!editing;document.querySelectorAll('[contenteditable]').forEach(function(el){el.setAttribute('contenteditable',editing);});this.textContent=editing?'Preview':'Edit';};
+
+function fillFeatures(features){
+  var feat=document.getElementById('feat');feat.innerHTML='';
+  (features||[]).slice(0,3).forEach(function(f,i){var d=document.createElement('div');d.className='fcard an';d.style.setProperty('--d',(0.30+i*0.08)+'s');
+    d.innerHTML=ICONS[i]+'<h5 contenteditable="true">'+esc(f.title)+'</h5><p contenteditable="true">'+esc(f.body)+'</p>';feat.appendChild(d);});
+}
+function load(c){
+  state.accent=c.accent||'#0F9D7A';state.accent2=c.accent2||c.accent||'#11B98F';state.theme=c.theme||'light';state.anim=c.anim||'fadeUp';
+  document.getElementById('badge').textContent=c.badge||'';document.getElementById('headLead').textContent=c.headLead||'';
+  document.getElementById('headRest').textContent=c.headRest||'';document.getElementById('sub').textContent=c.sub||'';
+  document.getElementById('cta1').textContent=c.ctaPrimary||'';document.getElementById('cta2').textContent=c.ctaSecondary||'';
+  fillFeatures(c.features);applyDesign();markPanel();play();
+}
+function gather(){
+  var feats=[];document.querySelectorAll('#feat .fcard').forEach(function(fc){feats.push({title:fc.querySelector('h5').textContent.trim(),body:fc.querySelector('p').textContent.trim()});});
+  return {badge:document.getElementById('badge').textContent.trim(),headLead:document.getElementById('headLead').textContent.trim(),
+    headRest:document.getElementById('headRest').textContent.trim(),sub:document.getElementById('sub').textContent.trim(),
+    ctaPrimary:document.getElementById('cta1').textContent.trim(),ctaSecondary:document.getElementById('cta2').textContent.trim(),
+    features:feats,accent:state.accent,accent2:state.accent2,theme:state.theme,anim:state.anim};
+}
+document.getElementById('saveBtn').onclick=function(){
+  fetch('/api/landing',{method:'PUT',headers:{'Content-Type':'application/json','X-CSRF-Token':getCsrf()},credentials:'same-origin',body:JSON.stringify(gather())})
+   .then(function(r){if(!r.ok)throw new Error();return r.json();})
+   .then(function(){var t=document.getElementById('toast');t.textContent='Saved and published';t.classList.add('show');setTimeout(function(){t.classList.remove('show');},1800);})
+   .catch(function(){var t=document.getElementById('toast');t.textContent='Save failed, please sign in again';t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2200);});
+};
+
+// login
+document.getElementById('lbtn').onclick=function(){
+  var err=document.getElementById('lerr');err.textContent='';
+  fetch('/api/review/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('le').value.trim(),password:document.getElementById('lp').value})})
+   .then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||'Login failed');return d;});})
+   .then(function(d){start();}) // session cookie set by the login response
+   .catch(function(e){err.textContent=e.message;});
+};
+function start(){document.getElementById('login').style.display='none';fetch('/api/landing').then(function(r){return r.json();}).then(load);}
+// Are we already signed in (console cookie present)? Ask the server.
+fetch('/api/console/me',{credentials:'same-origin'}).then(function(r){if(!r.ok)throw 0;return r.json();})
+  .then(function(){start();}).catch(function(){document.getElementById('login').style.display='flex';});
+</script>
+</body>
+</html>

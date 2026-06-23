@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Enjeeoh demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="/theme.js"></script>
+<style>
+  :root{--accent:#0F9D7A;--accent2:#11B98F;--bg:#FBFBFE;--fg:#15162A;--muted:#6C6F84;--card:#FFF;--line:#ECEDF4;--soft:#F4F4FA;--shadow:0 24px 60px rgba(12,14,40,.16)}
+  .dark{--bg:#0C0D17;--fg:#F3F4FB;--muted:#9DA1B8;--card:#16182A;--line:#242639;--soft:#1B1D2E;--shadow:0 24px 60px rgba(0,0,0,.5)}
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:var(--bg);color:var(--fg);font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .nav{max-width:1040px;margin:0 auto;padding:22px 26px;display:flex;justify-content:space-between;align-items:center}
+  .nav .logo{font:700 18px 'Space Grotesk';text-decoration:none;color:var(--fg)} .nav .links a{color:var(--fg);text-decoration:none;font:600 14px Inter;margin-left:20px} .nav .links .cta{color:var(--accent)}
+  .wrap{max-width:1040px;margin:0 auto;padding:24px 26px 70px;position:relative}
+  .glow{position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:560px;height:360px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 16%,transparent),transparent 70%);filter:blur(12px);pointer-events:none;z-index:0}
+  .head{text-align:center;position:relative;z-index:1;max-width:640px;margin:8px auto 28px}
+  .eyebrow{font:600 12px Inter;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:0 0 12px}
+  h1{font:700 42px/1.08 'Space Grotesk';letter-spacing:-.025em;margin:0 0 14px} h1 .g{background:linear-gradient(105deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .lead{font:400 17px/1.6 Inter;color:var(--muted);margin:0}
+  .pill{display:inline-block;margin-top:14px;font:500 12.5px Inter;color:var(--muted);background:var(--soft);border-radius:20px;padding:6px 14px}
+
+  .frame{position:relative;z-index:1;max-width:620px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);overflow:hidden}
+  .bar{display:flex;align-items:center;gap:8px;padding:11px 15px;border-bottom:1px solid var(--line);background:var(--soft)}
+  .bar i{width:10px;height:10px;border-radius:50%;background:var(--line);display:block}
+  .bar .url{flex:1;text-align:center;font:12px ui-monospace,monospace;color:var(--muted)}
+  .screen{padding:26px 28px 30px;min-height:360px}
+  .eye{font:600 12px Inter;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:0 0 8px}
+  .sh{font:700 23px 'Space Grotesk';margin:0 0 4px} .sd{color:var(--muted);font:400 14px Inter;margin:0 0 18px;display:flex;align-items:center;gap:7px}
+  .dot{width:5px;height:5px;border-radius:50%;background:var(--muted);display:inline-block}
+  .lab{font:600 13px Inter;display:block;margin:0 0 10px}
+  .row{display:flex;align-items:center;gap:13px;border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:.12s;background:var(--card)}
+  .row:hover{border-color:var(--accent);transform:translateX(2px)}
+  .av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:600 15px 'Space Grotesk';color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+  .row h3{margin:0 0 2px;font:600 15px 'Space Grotesk'} .row p{margin:0;color:var(--muted);font:400 13px Inter}
+  .dates{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:20px}
+  .date{flex:0 0 auto;min-width:58px;text-align:center;border:1px solid var(--line);border-radius:12px;padding:9px 6px;cursor:pointer;transition:.12s}
+  .date:hover{border-color:var(--accent)} .date.on{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+  .date .dw{font:600 10px Inter;text-transform:uppercase;color:var(--muted)} .date.on .dw{color:color-mix(in srgb,var(--bg) 70%,var(--fg))} .date .nm{font:700 17px 'Space Grotesk';margin-top:2px}
+  .slots{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .slot{border:1px solid var(--line);background:var(--card);border-radius:11px;padding:12px 6px;font:600 14px Inter;color:var(--fg);cursor:pointer;transition:.12s} .slot:hover{border-color:var(--accent);color:var(--accent)}
+  .back{background:none;border:0;color:var(--muted);font:500 13px Inter;cursor:pointer;padding:0;margin-bottom:14px}
+  .field input{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 14px;font:400 15px Inter;margin-bottom:12px;background:var(--card);color:var(--fg)}
+  .chosen{background:var(--soft);border-radius:12px;padding:13px 15px;margin-bottom:18px;font:400 14px Inter}
+  .cta{width:100%;background:var(--accent);color:#fff;border:0;border-radius:12px;padding:14px;font:600 15px Inter;cursor:pointer}
+  .done{text-align:center;padding:10px 0}
+  .check{width:52px;height:52px;border-radius:50%;background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent);display:flex;align-items:center;justify-content:center;margin:6px auto 14px}
+  .link{font:13px ui-monospace,monospace;color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);border-radius:8px;padding:9px 12px;word-break:break-all;margin-top:6px;display:inline-block}
+  .restart{margin-top:16px;background:var(--card);border:1px solid var(--line);color:var(--fg);border-radius:10px;padding:9px 16px;font:600 13px Inter;cursor:pointer}
+
+  .feat{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:760px;margin:42px auto 0}
+  .fc{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:18px;text-align:center}
+  .fc h4{margin:0 0 5px;font:600 14px 'Space Grotesk'} .fc p{margin:0;font:400 12.5px/1.5 Inter;color:var(--muted)}
+  .end{text-align:center;margin-top:42px} .end a{margin:0 6px}
+  .b1{background:var(--accent);color:#fff;border:0;border-radius:12px;padding:13px 26px;font:600 15px Inter;text-decoration:none;display:inline-block;box-shadow:0 8px 20px color-mix(in srgb,var(--accent) 34%,transparent)}
+  .b2{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:13px 26px;font:600 15px Inter;text-decoration:none;display:inline-block}
+  .an{opacity:0;transform:translateY(14px);animation:rise .55s cubic-bezier(.2,.7,.2,1) forwards} @keyframes rise{to{opacity:1;transform:none}}
+  @media (max-width:760px){h1{font-size:32px} .feat{grid-template-columns:1fr}}
+
+  .show{max-width:900px;margin:56px auto 0;position:relative;z-index:1}
+  .show-head{text-align:center;max-width:620px;margin:0 auto 24px}
+  .show-head h2{font:700 30px 'Space Grotesk';letter-spacing:-.02em;margin:0 0 10px}
+  .show-lead{color:var(--muted);font:400 16px/1.6 Inter;margin:0}
+  .show-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .show-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow)}
+  .show-card h4{margin:0 0 8px;font:600 15px 'Space Grotesk'}
+  .show-sub{color:var(--muted);font:400 13px Inter;margin:0 0 12px}
+  .show-link{font:12px ui-monospace,monospace;color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,transparent);border-radius:8px;padding:11px 12px;word-break:break-all}
+  .wk{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px}
+  .wk span{text-align:center;font:600 11px Inter;color:var(--muted)}
+  .wk b{text-align:center;font:600 12px Inter;background:var(--soft);border-radius:7px;padding:8px 0}
+  .mini-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+  .mini-cal span{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font:600 12px Inter;border:1px solid var(--line);border-radius:7px;color:var(--ink)}
+  .mini-cal .dh{border:0;color:var(--muted);font-size:10px}
+  .mini-cal .off{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .owner-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .ow{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .ow b{display:block;font:600 14px 'Space Grotesk';margin-bottom:5px}
+  .ow span{color:var(--muted);font:400 13px/1.5 Inter}
+  @media (max-width:760px){.show-grid{grid-template-columns:1fr}.owner-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="nav"><a href="/" class="logo">Enjeeoh</a><div class="links" id="nav-links"></div></div>
+<div class="wrap">
+  <div class="glow"></div>
+  <div class="head">
+    <p class="eyebrow an" data-edit="eyebrow">Live demo</p>
+    <h1 class="an" style="animation-delay:.05s"><span data-edit="headPre">See what your supporters </span><span class="g" data-edit="headWord">experience</span><span data-edit="headPost">.</span></h1>
+    <p class="lead an" data-edit="lead" style="animation-delay:.12s">This is a working booking page for a fictional charity, Riverside Community Trust. Pick a team member, choose a time, and book, exactly as a real visitor would.</p>
+    <span class="pill an" data-edit="pill" style="animation-delay:.18s">Sample data, no sign up needed</span>
+  </div>
+
+  <div class="frame an" style="animation-delay:.22s">
+    <div class="bar"><i></i><i></i><i></i><span class="url">openslot.org/book/riverside-community-trust</span></div>
+    <div class="screen" id="screen"></div>
+  </div>
+
+  <div class="feat">
+    <div class="fc an"><h4 data-edit="f0t">Per person scheduling</h4><p data-edit="f0b">Each team member has their own hours and calendar.</p></div>
+    <div class="fc an" style="animation-delay:.05s"><h4 data-edit="f1t">Free video calls</h4><p data-edit="f1b">A Jitsi room is created automatically for each booking.</p></div>
+    <div class="fc an" style="animation-delay:.1s"><h4 data-edit="f2t">Universal invites</h4><p data-edit="f2b">Every booking sends a standard calendar invite.</p></div>
+  </div>
+
+  <div class="show">
+    <div class="show-head">
+      <p class="eyebrow an">Behind the scenes</p>
+      <h2 class="an" style="animation-delay:.05s" data-edit="showH1">What the team sees</h2>
+      <p class="show-lead an" style="animation-delay:.1s">Every member of Riverside Community Trust gets their own dashboard: a personal booking link, weekly hours, and a calendar to block out days off.</p>
+    </div>
+    <div class="show-grid">
+      <div class="show-card an">
+        <h4>Sarah's booking link</h4>
+        <div class="show-link">enjeeoh.com/book/riverside-community-trust/sarah-okafor</div>
+        <h4 style="margin-top:18px">This week</h4>
+        <div class="wk"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span></div>
+        <div class="wk"><b>9 to 5</b><b>9 to 5</b><b>9 to 5</b><b>off</b><b>9 to 5</b></div>
+      </div>
+      <div class="show-card an" style="animation-delay:.07s">
+        <h4>Days off</h4>
+        <p class="show-sub">Click any day to block it. Blocked days take no bookings.</p>
+        <div class="mini-cal">
+          <span class="dh">S</span><span class="dh">M</span><span class="dh">T</span><span class="dh">W</span><span class="dh">T</span><span class="dh">F</span><span class="dh">S</span>
+          <span></span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+          <span>7</span><span>8</span><span class="off">9</span><span>10</span><span>11</span><span>12</span><span>13</span>
+          <span>14</span><span>15</span><span>16</span><span>17</span><span class="off">18</span><span>19</span><span>20</span>
+          <span>21</span><span>22</span><span>23</span><span>24</span><span>25</span><span class="off">26</span><span>27</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="show">
+    <div class="show-head">
+      <p class="eyebrow an">For the platform owner</p>
+      <h2 class="an" style="animation-delay:.05s" data-edit="showH2">You stay in control</h2>
+      <p class="show-lead an" style="animation-delay:.1s">A super admin console sits behind it all, with roles you can hand out so others help without seeing everything.</p>
+    </div>
+    <div class="owner-grid">
+      <div class="ow an"><b>Verify organisations</b><span>Approve genuine non-profits before they go live.</span></div>
+      <div class="ow an" style="animation-delay:.04s"><b>Allocate roles</b><span>Onboarding admins approve NGOs, content managers edit the site.</span></div>
+      <div class="ow an" style="animation-delay:.08s"><b>Set user limits</b><span>Cap members per organisation or across the whole platform.</span></div>
+      <div class="ow an" style="animation-delay:.12s"><b>Offboard anyone</b><span>Revoke a whole organisation or a single person in seconds.</span></div>
+      <div class="ow an" style="animation-delay:.16s"><b>Two factor and policy</b><span>Require MFA and set the password rules everyone follows.</span></div>
+      <div class="ow an" style="animation-delay:.2s"><b>Full activity log</b><span>See every signup, approval and change across all enterprises.</span></div>
+    </div>
+  </div>
+
+  <div class="end">
+    <a class="b1" href="/signup">Apply as an NGO</a>
+    <a class="b2" href="/about">About Enjeeoh</a>
+  </div>
+</div>
+
+<script>
+var ORG='Riverside Community Trust';
+var MEMBERS=[
+  {init:'SO',name:'Sarah Okafor',role:'Organiser',events:[{t:'Intro call',d:30,desc:'A quick introduction'},{t:'Partnership chat',d:45,desc:'For funders and partners'}]},
+  {init:'JC',name:'James Carter',role:'Programs lead',events:[{t:'Volunteer intake',d:30,desc:'New volunteer welcome'}]},
+  {init:'AB',name:'Aisha Bello',role:'Support',events:[{t:'Support session',d:30,desc:'One to one support'}]}
+];
+var TIMES=['9:00 am','9:45 am','10:30 am','11:15 am','1:00 pm','1:45 pm','2:30 pm','3:15 pm'];
+var DAYS=['Mon','Tue','Wed','Thu','Fri'];
+var st={member:null,event:null,day:1,time:null};
+var screen=document.getElementById('screen');
+function rid(){return Math.random().toString(16).slice(2,8);}
+
+function members(){
+  st={member:null,event:null,day:1,time:null};
+  var h='<p class="eye">'+ORG+'</p><h2 class="sh">Who would you like to meet?</h2><p class="sd"><span class="dot"></span>Choose a team member</p>';
+  MEMBERS.forEach(function(m,i){h+='<div class="row" data-m="'+i+'"><div class="av">'+m.init+'</div><div><h3>'+m.name+'</h3><p>'+m.role+'</p></div></div>';});
+  screen.innerHTML=h;
+  screen.querySelectorAll('[data-m]').forEach(function(el){el.onclick=function(){st.member=MEMBERS[+el.dataset.m];events();};});
+}
+function events(){
+  var m=st.member;
+  if(m.events.length===1){st.event=m.events[0];days();return;}
+  var h='<button class="back" id="b">Back to team</button><p class="eye">'+m.name+'</p><h2 class="sh">Choose what to book</h2><p class="sd"><span class="dot"></span>'+m.role+'</p>';
+  m.events.forEach(function(e,i){h+='<div class="row" data-e="'+i+'"><div><h3>'+e.t+'</h3><p>'+e.d+' min, '+e.desc+'</p></div></div>';});
+  screen.innerHTML=h;
+  document.getElementById('b').onclick=members;
+  screen.querySelectorAll('[data-e]').forEach(function(el){el.onclick=function(){st.event=m.events[+el.dataset.e];days();};});
+}
+function days(){
+  var m=st.member,e=st.event;
+  var h='<button class="back" id="b">Back</button><p class="eye">'+m.name+'</p><h2 class="sh">'+e.t+'</h2><p class="sd"><span class="dot"></span>'+e.d+' min with '+m.name+'</p>';
+  h+='<span class="lab">Pick a day</span><div class="dates" id="dates"></div><span class="lab">Available times, Australia/Melbourne</span><div class="slots" id="slots"></div>';
+  screen.innerHTML=h;
+  document.getElementById('b').onclick=function(){st.event=null;if(m.events.length>1)events();else members();};
+  var dz=document.getElementById('dates');
+  DAYS.forEach(function(d,i){var b=document.createElement('div');b.className='date'+(i===1?' on':'');b.innerHTML='<div class="dw">'+d+'</div><div class="nm">'+(22+i)+'</div>';
+    b.onclick=function(){dz.querySelectorAll('.date').forEach(function(x){x.classList.remove('on')});b.classList.add('on');fillSlots();};dz.appendChild(b);});
+  fillSlots();
+}
+function fillSlots(){
+  var sl=document.getElementById('slots');sl.innerHTML='';
+  TIMES.forEach(function(t){var b=document.createElement('button');b.className='slot';b.textContent=t;b.onclick=function(){st.time=t;details();};sl.appendChild(b);});
+}
+function details(){
+  var m=st.member,e=st.event;
+  screen.innerHTML='<button class="back" id="b">Change time</button><div class="chosen"><b>'+st.time+'</b> with '+m.name+'</div>'+
+    '<div class="field"><input placeholder="Your name" value="Jordan Avery"></div><div class="field"><input placeholder="Your email" value="jordan@example.org"></div>'+
+    '<button class="cta" id="c">Confirm booking</button>';
+  document.getElementById('b').onclick=days;
+  document.getElementById('c').onclick=done;
+}
+function done(){
+  var m=st.member,e=st.event;
+  screen.innerHTML='<div class="done"><div class="check"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></div>'+
+    '<h2 class="sh">You are booked</h2><p class="sd" style="justify-content:center"><span class="dot"></span>'+e.t+' with '+m.name+', '+st.time+'</p>'+
+    '<div class="link">meet.jit.si/enjeeoh-riverside-'+rid()+'</div><div><button class="restart" id="r">Try the demo again</button></div></div>';
+  document.getElementById('r').onclick=members;
+}
+members();
+fetch('/api/landing').then(function(r){return r.json();}).then(function(l){
+  if(l&&l.accent){document.documentElement.style.setProperty('--accent',l.accent);document.documentElement.style.setProperty('--accent2',l.accent2||l.accent);}
+  if(l&&l.theme==='dark') document.body.classList.add('dark');
+}).catch(function(){});
+</script>
+<script src="/nav.js"></script>
+<script>window.__PAGE_KEY__="demo";</script>
+<script src="/page-edit.js"></script>
+</body>
+</html>

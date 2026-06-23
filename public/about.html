@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>About Enjeeoh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="/theme.js"></script>
+<style>
+  :root{--accent:#0F9D7A;--accent2:#11B98F;--bg:#FBFBFE;--fg:#15162A;--muted:#6C6F84;--card:#FFF;--line:#ECEDF4;--soft:#F4F4FA;--shadow:0 24px 60px rgba(12,14,40,.16)}
+  .dark{--bg:#0C0D17;--fg:#F3F4FB;--muted:#9DA1B8;--card:#16182A;--line:#242639;--soft:#1B1D2E;--shadow:0 24px 60px rgba(0,0,0,.5)}
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:var(--bg);color:var(--fg);font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .nav{max-width:1040px;margin:0 auto;padding:22px 26px;display:flex;justify-content:space-between;align-items:center}
+  .nav .logo{font:700 18px 'Space Grotesk';text-decoration:none;color:var(--fg)} .nav .links a{color:var(--fg);text-decoration:none;font:600 14px Inter;margin-left:20px}
+  .nav .links .cta{color:var(--accent)}
+  .wrap{max-width:840px;margin:0 auto;padding:30px 26px 70px;position:relative}
+  .glow{position:absolute;top:-20px;right:-60px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 20%,transparent),transparent 68%);filter:blur(12px);pointer-events:none;z-index:0}
+  .eyebrow{position:relative;z-index:1;font:600 12px Inter;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:14px 0 12px}
+  h1{position:relative;z-index:1;font:700 46px/1.08 'Space Grotesk';letter-spacing:-.025em;margin:0 0 18px;max-width:620px}
+  h1 .g{background:linear-gradient(105deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .lead{position:relative;z-index:1;font:400 19px/1.6 Inter;color:var(--muted);max-width:600px;margin:0 0 30px}
+  h2{font:700 24px 'Space Grotesk';letter-spacing:-.01em;margin:48px 0 16px}
+  .story p{font:400 16px/1.7 Inter;color:var(--fg);max-width:640px;margin:0 0 16px}
+  .story .soft{color:var(--muted)}
+  .values{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:8px}
+  .v{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px}
+  .v .ic{width:30px;height:30px;color:var(--accent);margin-bottom:12px}
+  .v h3{margin:0 0 6px;font:600 16px 'Space Grotesk'} .v p{margin:0;font:400 14px/1.6 Inter;color:var(--muted)}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .step{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
+  .step .n{width:30px;height:30px;border-radius:9px;background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);display:flex;align-items:center;justify-content:center;font:700 14px 'Space Grotesk';margin-bottom:12px}
+  .step h3{margin:0 0 5px;font:600 15px 'Space Grotesk'} .step p{margin:0;font:400 13px/1.55 Inter;color:var(--muted)}
+  .team{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .member{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;text-align:center}
+  .member .av{width:58px;height:58px;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font:700 20px 'Space Grotesk';color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+  .member h3{margin:0 0 2px;font:600 15px 'Space Grotesk'} .member p{margin:0;font:400 12.5px Inter;color:var(--muted)}
+  .fund{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 10%,var(--card)),var(--card));border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:20px;padding:30px;margin-top:48px}
+  .fund h2{margin:0 0 10px} .fund p{margin:0 0 18px;font:400 16px/1.6 Inter;color:var(--muted);max-width:560px}
+  .btnrow{display:flex;gap:12px;flex-wrap:wrap}
+  .b1{background:var(--accent);color:#fff;border:0;border-radius:12px;padding:13px 24px;font:600 15px Inter;text-decoration:none;display:inline-block;box-shadow:0 8px 20px color-mix(in srgb,var(--accent) 34%,transparent)}
+  .b2{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:13px 24px;font:600 15px Inter;text-decoration:none;display:inline-block}
+  .note{font:400 12.5px Inter;color:var(--muted);margin-top:18px}
+  footer{max-width:1040px;margin:0 auto;padding:30px 26px 50px;color:var(--muted);font:400 13px Inter;border-top:1px solid var(--line)}
+  .an{opacity:0;transform:translateY(16px);animation:rise .6s cubic-bezier(.2,.7,.2,1) forwards}
+  @keyframes rise{to{opacity:1;transform:none}}
+  @media (max-width:760px){h1{font-size:34px} .values,.team{grid-template-columns:1fr 1fr} .steps{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="nav"><a href="/" class="logo">Enjeeoh</a><div class="links" id="nav-links"></div></div>
+<div class="wrap">
+  <div class="glow"></div>
+  <p class="eyebrow an" data-edit="eyebrow">About Enjeeoh</p>
+  <h1 class="an" style="animation-delay:.05s"><span data-edit="headPre">Scheduling should not be a </span><span class="g" data-edit="headWord">cost</span><span data-edit="headPost"> non-profits carry.</span></h1>
+  <p class="lead an" data-edit="lead" style="animation-delay:.12s">Enjeeoh is booking software made for NGOs and non-profits. It is free for verified organisations and kept running through donations, so the organisations doing the hardest work never have to pay to be reached.</p>
+
+  <div class="story an" style="animation-delay:.18s">
+    <h2 data-edit="storyH">Why we built it</h2>
+    <p data-edit="story1">Enjeeoh started with a simple frustration. A friend running a small community charity was spending a meaningful slice of a tiny budget on tools that larger companies barely notice, scheduling among them. Every dollar going to software was a dollar not going to the people the charity existed to help.</p>
+    <p class="soft" data-edit="story2">So the idea was straightforward. Take the kind of booking tool that usually sits behind a per-seat subscription, build it properly, and make it free for the organisations that need it most. Open the source so anyone can read it, host it, or improve it. Keep it alive through donations rather than fees.</p>
+  </div>
+
+  <h2 class="an" data-edit="valuesH">What we stand for</h2>
+  <div class="values">
+    <div class="v an"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 8h14M5 16h14"/></svg><h3 data-edit="v0t">Free for NGOs, always</h3><p data-edit="v0b">Every feature is included for verified non-profits. There is no paid tier and no upsell.</p></div>
+    <div class="v an" style="animation-delay:.05s"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6l-5 6 5 6M16 6l5 6-5 6"/></svg><h3 data-edit="v1t">Built for non-profits</h3><p data-edit="v1b">Made specifically for the organisations that need it, not adapted from a corporate tool.</p></div>
+    <div class="v an" style="animation-delay:.1s"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><h3 data-edit="v2t">Your data is yours</h3><p data-edit="v2b">You host it, you own it. No selling of data, no tracking of the people who book with you.</p></div>
+    <div class="v an" style="animation-delay:.15s"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.5-7 10-7 10z"/></svg><h3 data-edit="v3t">Funded by goodwill</h3><p data-edit="v3b">Donations cover hosting and development, so the service can stay free for everyone.</p></div>
+  </div>
+
+  <h2 class="an" data-edit="stepsH">How it works</h2>
+  <div class="steps">
+    <div class="step an"><div class="n">1</div><h3 data-edit="s0t">Apply</h3><p data-edit="s0b">An organisation applies with its details and what it does.</p></div>
+    <div class="step an" style="animation-delay:.06s"><div class="n">2</div><h3 data-edit="s1t">Get verified</h3><p data-edit="s1b">We confirm it is a genuine non-profit, then activate the account.</p></div>
+    <div class="step an" style="animation-delay:.12s"><div class="n">3</div><h3 data-edit="s2t">Start scheduling</h3><p data-edit="s2b">The team sets their hours and shares a booking page, free.</p></div>
+  </div>
+
+  <h2 class="an" data-edit="teamH">The people behind it</h2>
+  <div class="team">
+    <div class="member an"><div class="av">AM</div><h3 data-edit="t0n">Amara Mensah</h3><p data-edit="t0r">Founder</p></div>
+    <div class="member an" style="animation-delay:.05s"><div class="av">TN</div><h3 data-edit="t1n">Tomas Nilsson</h3><p data-edit="t1r">Engineering</p></div>
+    <div class="member an" style="animation-delay:.1s"><div class="av">PR</div><h3 data-edit="t2n">Priya Raman</h3><p data-edit="t2r">Community</p></div>
+    <div class="member an" style="animation-delay:.15s"><div class="av">DO</div><h3 data-edit="t3n">Daniel Obi</h3><p data-edit="t3r">Support</p></div>
+  </div>
+  <p class="note">The names above are placeholders. Replace them with your own team in the page content.</p>
+
+  <div class="fund an">
+    <h2 data-edit="fundH">Keep it free for the next organisation</h2>
+    <p data-edit="fundBlurb">Enjeeoh is given away for free and funded by people who believe non-profits should not pay to be reached. If that is you, a one-time or monthly donation keeps the lights on.</p>
+    <div class="btnrow"><a class="b1" href="/donate">Support Enjeeoh</a><a class="b2" href="/demo">See the demo</a></div>
+  </div>
+</div>
+<footer>Enjeeoh. Free for verified non-profits.</footer>
+<script>
+fetch('/api/landing').then(function(r){return r.json();}).then(function(l){
+  if(l&&l.accent){document.documentElement.style.setProperty('--accent',l.accent);document.documentElement.style.setProperty('--accent2',l.accent2||l.accent);}
+  if(l&&l.theme==='dark') document.body.classList.add('dark');
+}).catch(function(){});
+</script>
+<script src="/nav.js"></script>
+<script src="/site-edit.js" data-page="about"></script>
+</body>
+</html>

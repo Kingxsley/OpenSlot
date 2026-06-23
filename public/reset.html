@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Reset password, Enjeeoh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="/theme.js"></script>
+<style>
+  :root{--accent:#0F9D7A;--ink:#16182D;--muted:#6B7280;--line:#ECEDF4;--bg:#FBFBFE}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif}
+  .wrap{max-width:420px;margin:70px auto;padding:0 20px}
+  .eyebrow{font:600 12px Inter;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 8px}
+  h1{font:700 26px 'Space Grotesk';margin:0 0 8px} .sub{color:var(--muted);font-size:15px;margin:0 0 24px;line-height:1.5}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px}
+  label{display:block;font:600 13px Inter;margin:0 0 6px}
+  input{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 13px;font:400 15px Inter;margin-bottom:16px}
+  input:focus{outline:none;border-color:var(--accent)}
+  button{width:100%;background:var(--accent);color:#fff;border:0;border-radius:11px;padding:13px;font:600 15px Inter;cursor:pointer}
+  .err{color:#C0392B;font-size:14px;margin-top:10px;min-height:18px} .ok{color:var(--accent);font-size:15px}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Enjeeoh</p>
+  <h1 id="title">Choose a new password</h1>
+  <p class="sub" id="sub">Set a new password for your account.</p>
+  <div class="panel" id="panel">
+    <label>New password</label><input id="password" type="password" placeholder="At least 8 characters">
+    <label>Confirm password</label><input id="confirm" type="password" placeholder="Repeat it">
+    <button id="go">Set password</button>
+    <div class="err" id="err"></div>
+  </div>
+</div>
+<script>
+var token=new URLSearchParams(location.search).get('token');
+if(!token){document.getElementById('title').textContent='Invalid link';document.getElementById('panel').style.display='none';}
+document.getElementById('go').onclick=function(){
+  var err=document.getElementById('err');err.textContent='';
+  var p=document.getElementById('password').value,c=document.getElementById('confirm').value;
+  if(p.length<8){err.textContent='Password must be at least 8 characters.';return;}
+  if(p!==c){err.textContent='Passwords do not match.';return;}
+  fetch('/api/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:token,password:p})})
+   .then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error);return d;});})
+   .then(function(){document.getElementById('panel').innerHTML='<p class="ok">Your password has been set. You can now <a href="/admin">sign in</a>.</p>';})
+   .catch(function(e){err.textContent=e.message;});
+};
+</script>
+</body>
+</html>

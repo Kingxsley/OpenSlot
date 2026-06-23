@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Join your team on Enjeeoh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--accent:#0F9D7A;--ink:#16182D;--muted:#6B7280;--line:#ECEDF3;--bg:#FBFBFD}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif}
+  .wrap{max-width:420px;margin:70px auto;padding:0 20px}
+  .eyebrow{font:600 12px Inter;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 8px}
+  h1{font:700 26px 'Space Grotesk';margin:0 0 8px} .sub{color:var(--muted);font-size:15px;margin:0 0 24px;line-height:1.5}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px}
+  label{display:block;font:600 13px Inter;margin:0 0 6px}
+  input{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 13px;font:400 15px Inter;margin-bottom:16px}
+  input:focus{outline:none;border-color:var(--accent)}
+  button{width:100%;background:var(--accent);color:#fff;border:0;border-radius:11px;padding:13px;font:600 15px Inter;cursor:pointer}
+  .err{color:#C0392B;font-size:14px;margin-top:10px;min-height:18px}
+</style>
+<script src="/theme.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow" id="eyebrow">Team invite</p>
+  <h1 id="title">Join your team</h1>
+  <p class="sub" id="sub">Set a password to activate your account. You'll then set your own availability.</p>
+  <div class="panel" id="panel">
+    <label>Your name</label><input id="name">
+    <label>Email</label><input id="email" disabled>
+    <label>Choose a password</label><input id="password" type="password" placeholder="At least 8 characters">
+    <button id="go">Activate my account</button>
+    <div class="err" id="err"></div>
+  </div>
+</div>
+<script>
+const token = new URLSearchParams(location.search).get('token');
+async function init(){
+  if(!token){ document.getElementById('title').textContent='Invalid invite'; document.getElementById('panel').style.display='none'; return; }
+  try{
+    const r = await fetch('/api/invite/'+token); const d = await r.json();
+    if(!r.ok) throw new Error(d.error);
+    document.getElementById('eyebrow').textContent = d.orgName;
+    document.getElementById('email').value = d.email;
+  }catch(e){ document.getElementById('title').textContent='Invite not found'; document.getElementById('sub').textContent='This invite is invalid or has already been used.'; document.getElementById('panel').style.display='none'; }
+}
+document.getElementById('go').onclick = async () => {
+  const err = document.getElementById('err'); err.textContent='';
+  const name = document.getElementById('name').value.trim(), password = document.getElementById('password').value;
+  if(!name || password.length < 8){ err.textContent='Add your name and a password of at least 8 characters.'; return; }
+  try{
+    const r = await fetch('/api/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,name,password})});
+    const d = await r.json(); if(!r.ok) throw new Error(d.error);
+    location.href='/admin'; // the session cookie was set by the join response
+  }catch(e){ err.textContent = e.message; }
+};
+init();
+</script>
+</body>
+</html>
