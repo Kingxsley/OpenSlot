@@ -5,19 +5,20 @@
 <title>Enjeeoh Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="/theme.js"></script>
 <style>
-  :root{--accent:#0F9D7A;--ink:#16182D;--muted:#6B7280;--line:#ECEDF3;--bg:#FBFBFD;--soft:#F3F4F8}
+  :root{--accent:#0F9D7A;--ink:#16182D;--fg:#16182D;--muted:#6B7280;--line:#ECEDF3;--bg:#FBFBFD;--soft:#F3F4F8;--card:#FFF}
   *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif}
   .wrap{max-width:880px;margin:0 auto;padding:26px 20px 80px}
-  h1{font:700 23px 'Space Grotesk';margin:0 0 2px} h2{font:600 16px 'Space Grotesk';margin:0 0 14px}
+  h1{font:700 23px 'Space Grotesk';margin:0 0 2px;color:var(--ink)} h2{font:600 16px 'Space Grotesk';margin:0 0 14px;color:var(--ink)}
   .sub{color:var(--muted);font-size:14px;margin:0 0 22px}
-  .panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px;margin-bottom:18px}
-  label{display:block;font:600 13px Inter;margin:0 0 6px}
-  input,select,textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:400 14px Inter;background:#fff;margin-bottom:14px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;margin-bottom:18px}
+  label{display:block;font:600 13px Inter;margin:0 0 6px;color:var(--ink)}
+  input,select,textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:400 14px Inter;background:var(--bg);color:var(--ink);margin-bottom:14px}
   input:focus,select:focus{outline:none;border-color:var(--accent)}
   button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:10px 16px;font:600 14px Inter;cursor:pointer}
-  button.ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
-  button.danger{background:#fff;border:1px solid #F1C7C2;color:#C0392B;padding:6px 10px;font-size:13px}
+  button.ghost{background:var(--card);border:1px solid var(--line);color:var(--ink)}
+  button.danger{background:var(--card);border:1px solid #F1C7C2;color:#C0392B;padding:6px 10px;font-size:13px}
   button.sm{padding:7px 12px;font-size:13px}
   .row{display:flex;gap:12px;flex-wrap:wrap}.row>*{flex:1;min-width:140px}
   .grid7{display:grid;grid-template-columns:90px 1fr 1fr;gap:8px;align-items:center;margin-bottom:8px} .grid7 .day{font:600 13px Inter}
@@ -30,7 +31,7 @@
   .banner{border-radius:12px;padding:14px 16px;margin-bottom:18px;font-size:14px;line-height:1.5}
   .b-pending{background:#FDF3E0;color:#7A5410;border:1px solid #F3D9A6} .b-rejected{background:#FBEAEA;color:#8A2A2A;border:1px solid #F1C7C2}
   .tabs{display:flex;gap:8px;margin-bottom:18px}
-  .tabs button{background:#fff;border:1px solid var(--line);color:var(--muted)} .tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .tabs button{background:var(--card);border:1px solid var(--line);color:var(--muted)} .tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
   .toggle{display:flex;align-items:center;gap:12px;justify-content:space-between;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:6px}
   .switch{width:46px;height:26px;border-radius:20px;background:var(--line);position:relative;cursor:pointer;flex:0 0 auto;transition:.15s} .switch.on{background:var(--accent)}
   .switch i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.15s} .switch.on i{left:23px}
@@ -57,7 +58,7 @@
   .modal-card p{margin:0 0 18px;color:var(--muted);font-size:14px;line-height:1.55;white-space:pre-wrap}
   .modal-acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
   .modal-acts button{border:0;border-radius:10px;padding:10px 16px;font:600 14px Inter;cursor:pointer}
-  .modal-acts .mc-ok{background:var(--accent);color:#fff}.modal-acts .mc-no{background:#fff;color:#991B1B;border:1px solid #FCA5A5}.modal-acts .mc-cancel{background:var(--card,#fff);border:1px solid var(--line);color:var(--ink,#15162a)}
+  .modal-acts .mc-ok{background:var(--accent);color:#fff}.modal-acts .mc-no{background:var(--card);color:#E06A62;border:1px solid #FCA5A5}.modal-acts .mc-cancel{background:var(--card);border:1px solid var(--line);color:var(--ink)}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink,#15162a);color:#fff;padding:12px 18px;border-radius:11px;font:600 13px Inter;z-index:300;opacity:0;transition:opacity .2s,transform .2s;max-width:90vw;text-align:center}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   .toast.err{background:#B0322B}.toast.ok{background:var(--accent)}
@@ -658,5 +659,6 @@ document.getElementById('e-add').onclick=async()=>{
 };
 boot(); // cookie (if any) is sent automatically; boot() shows the login form if not signed in
 </script>
+<script src="/nav.js"></script>
 </body>
 </html>
