@@ -1518,8 +1518,16 @@ function securityPreflight() {
   // mailbox domain you do not own — it will reject every message.
   const fromAddr = emailFrom();
   const fromDomain = (fromAddr.split('@')[1] || '').toLowerCase();
+  // Warn when several providers are set — only the highest-priority one is used.
+  const providers = [];
+  if (process.env.RESEND_API_KEY) providers.push('Resend');
+  if (process.env.BREVO_API_KEY) providers.push('Brevo');
+  if (process.env.SMTP_HOST || (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD)) providers.push(process.env.SMTP_HOST ? 'SMTP' : 'Gmail');
+  if (providers.length > 1) {
+    warns.push(`Multiple email providers configured (${providers.join(', ')}). Only ${emailMethod()} is used — order is Resend > Brevo > SMTP/Gmail. To use Gmail, REMOVE RESEND_API_KEY and BREVO_API_KEY.`);
+  }
   if ((process.env.RESEND_API_KEY || process.env.BREVO_API_KEY) && FREE_EMAIL_DOMAINS.has(fromDomain)) {
-    warns.push(`Email will FAIL: ${emailMethod()} cannot send from ${fromDomain} (you do not own it). Either (a) verify your own domain and set SMTP_FROM=you@yourdomain, or (b) use Gmail SMTP instead — unset RESEND_API_KEY and set SMTP_HOST=smtp.gmail.com, SMTP_USER=${fromAddr || 'you@gmail.com'}, SMTP_PASS=<gmail app password>, SMTP_FROM=${fromAddr || 'you@gmail.com'}.`);
+    warns.push(`Email will FAIL: ${emailMethod()} cannot send from ${fromDomain} (you do not own it). Either (a) verify your own domain and set SMTP_FROM=you@yourdomain, or (b) use Gmail instead — remove RESEND_API_KEY/BREVO_API_KEY and set GMAIL_USER + GMAIL_APP_PASSWORD.`);
   }
   if (warns.length) console.warn('\n  STARTUP WARNINGS:\n' + warns.map(w => '   - ' + w).join('\n'));
 }

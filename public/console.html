@@ -148,48 +148,62 @@ document.getElementById('lbtn').onclick=function(){
 document.getElementById('logout').onclick=function(){fetch('/api/console/logout',{method:'POST',headers:{'X-CSRF-Token':getCsrf()},credentials:'same-origin'}).catch(function(){}).then(function(){role='';showLogin();});};
 document.querySelectorAll('.tab').forEach(function(t){t.onclick=function(){ openTab(t); };});
 
-// ================= APPLICATIONS =================
-var appsState={raw:[],q:'',status:'',sort:'createdAt',dir:'desc'};
+// ================= APPLICATIONS (pending / approved / rejected tabs) =================
+var appsState={raw:[],tab:'pending',q:'',page:1,pageSize:20,sort:'createdAt',dir:'desc'};
 function loadApps(){
   fetch('/api/console/applications',{headers:H()}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(list){
     appsState.raw=list; renderApps();
   }).catch(function(){showLogin();});
 }
+function appsCount(status){ return appsState.raw.filter(function(a){return a.status===status;}).length; }
 function appsFiltered(){
-  var rows=appsState.raw.filter(function(a){return (!appsState.status||a.status===appsState.status) && textIncludes(a,['name','email','country','contactName','website','mission','slug'],appsState.q);});
+  var rows=appsState.raw.filter(function(a){return a.status===appsState.tab && textIncludes(a,['name','email','country','contactName','website','mission','slug'],appsState.q);});
   return sortRows(rows, appsState.sort, appsState.dir);
 }
 function renderApps(){
   var el=document.getElementById('apps');
-  var toolbar='<div class="card"><div class="toolbar">'+
+  var subtabs='<div class="tabs" style="margin:0 0 12px">'+['pending','approved','rejected'].map(function(s){
+    return '<button class="tab'+(appsState.tab===s?' on':'')+'" data-apptab="'+s+'">'+s.charAt(0).toUpperCase()+s.slice(1)+' <span class="badge b-'+s+'" style="padding:2px 7px">'+appsCount(s)+'</span></button>';
+  }).join('')+'</div>';
+  var toolbar='<div class="card">'+subtabs+'<div class="toolbar">'+
     '<input type="search" id="apps-q" placeholder="Search name, email, country..." value="'+attr(appsState.q)+'">'+
-    '<select id="apps-status"><option value="">All statuses</option>'+['pending','approved','rejected'].map(function(s){return '<option value="'+s+'"'+(appsState.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
-    '<select id="apps-sort">'+[['createdAt','Newest'],['name','Name'],['status','Status'],['memberCount','Members'],['country','Country']].map(function(o){return '<option value="'+o[0]+'"'+(appsState.sort===o[0]?' selected':'')+'>Sort: '+o[1]+'</option>';}).join('')+'</select>'+
+    '<select id="apps-sort">'+[['createdAt','Newest'],['name','Name'],['memberCount','Members'],['country','Country']].map(function(o){return '<option value="'+o[0]+'"'+(appsState.sort===o[0]?' selected':'')+'>Sort: '+o[1]+'</option>';}).join('')+'</select>'+
     '<button class="ghost" id="apps-dir">'+(appsState.dir==='asc'?'Asc ▲':'Desc ▼')+'</button>'+
+    '<select id="apps-size"><option value="20"'+(appsState.pageSize===20?' selected':'')+'>20 / page</option><option value="50"'+(appsState.pageSize===50?' selected':'')+'>50 / page</option></select>'+
     '<button class="ghost" id="apps-export">Export CSV</button>'+
     '</div><div class="meta" id="apps-count"></div></div>';
   var rows=appsFiltered();
-  document.getElementById('apps-count');
-  var body=!rows.length?'<div class="card">No matching applications.</div>':rows.map(function(a){
+  var pages=Math.max(1,Math.ceil(rows.length/appsState.pageSize));
+  if(appsState.page>pages) appsState.page=pages;
+  var pageRows=rows.slice((appsState.page-1)*appsState.pageSize, appsState.page*appsState.pageSize);
+  var isSuper=role==='superadmin';
+  var body=!rows.length?'<div class="card">No '+appsState.tab+' applications'+(appsState.q?' match your search.':'.')+'</div>':pageRows.map(function(a){
     var cap = a.maxMembers>0 ? a.maxMembers : 'no limit';
+    var actions='';
+    if(a.status==='pending') actions='<button class="go" onclick="decide(\''+a.id+'\',\'approved\')">Approve</button><button class="no" onclick="decide(\''+a.id+'\',\'rejected\')">Reject</button>';
+    else if(a.status==='approved') actions='<button class="no" onclick="decide(\''+a.id+'\',\'rejected\')">Revoke approval</button>';
+    else actions='<button class="go" onclick="decide(\''+a.id+'\',\'approved\')">Approve</button>';
     return '<div class="card"><div class="row"><div><b>'+esc(a.name)+'</b> <span class="badge b-'+a.status+'">'+a.status+'</span>'+
       (a.suspended?' <span class="badge b-locked">suspended</span>':'')+
       '<div class="meta">'+esc(a.email)+(a.country?' · '+esc(a.country):'')+' · '+a.memberCount+' members ('+cap+') · applied '+esc(new Date(a.createdAt).toLocaleDateString())+'</div>'+
-      (a.mission?'<div class="meta">'+esc(a.mission)+'</div>':'')+(a.website?'<div class="meta mono">'+esc(a.website)+'</div>':'')+'</div></div>'+
-      '<div class="acts"><input class="note" id="note-'+a.id+'" placeholder="Note (optional)">'+
-      '<button class="go" onclick="decide(\''+a.id+'\',\'approved\')">Approve</button>'+
-      '<button class="no" onclick="decide(\''+a.id+'\',\'rejected\')">Reject</button></div>'+
-      (role==='superadmin'?'<div class="lim">Max members for this org: <input type="number" min="0" id="cap-'+a.id+'" value="'+(a.maxMembers||0)+'"> <button class="ghost" onclick="setOrgCap(\''+a.id+'\')">Save</button> <span class="meta">(0 = no limit)</span></div>':'')+
+      (a.mission?'<div class="meta">'+esc(a.mission)+'</div>':'')+(a.website?'<div class="meta mono">'+esc(a.website)+'</div>':'')+
+      (a.reviewNote?'<div class="meta">Note: '+esc(a.reviewNote)+'</div>':'')+'</div></div>'+
+      '<div class="acts"><input class="note" id="note-'+a.id+'" placeholder="Note (optional)">'+actions+'</div>'+
+      (isSuper?'<div class="lim">Max members for this org: <input type="number" min="0" id="cap-'+a.id+'" value="'+(a.maxMembers||0)+'"> <button class="ghost" onclick="setOrgCap(\''+a.id+'\')">Save</button> <span class="meta">(0 = no limit)</span></div>':'')+
       '</div>';
   }).join('');
-  el.innerHTML=toolbar+body;
-  document.getElementById('apps-count').textContent=rows.length+' of '+appsState.raw.length+' applications';
-  document.getElementById('apps-q').oninput=function(){appsState.q=this.value;renderApps();var i=document.getElementById('apps-q');i.focus();i.setSelectionRange(i.value.length,i.value.length);};
-  document.getElementById('apps-status').onchange=function(){appsState.status=this.value;renderApps();};
+  var pager=rows.length>appsState.pageSize?'<div class="pager"><span class="meta">'+rows.length+' '+appsState.tab+' · page '+appsState.page+' of '+pages+'</span><button class="ghost" id="apps-prev"'+(appsState.page<=1?' disabled':'')+'>Prev</button><button class="ghost" id="apps-next"'+(appsState.page>=pages?' disabled':'')+'>Next</button></div>':'';
+  el.innerHTML=toolbar+body+pager;
+  document.getElementById('apps-count').textContent=rows.length+' '+appsState.tab+(appsState.q?' matching':'')+' application'+(rows.length===1?'':'s');
+  el.querySelectorAll('[data-apptab]').forEach(function(b){b.onclick=function(){appsState.tab=b.dataset.apptab;appsState.page=1;renderApps();};});
+  document.getElementById('apps-q').oninput=function(){appsState.q=this.value;appsState.page=1;renderApps();var i=document.getElementById('apps-q');i.focus();i.setSelectionRange(i.value.length,i.value.length);};
   document.getElementById('apps-sort').onchange=function(){appsState.sort=this.value;renderApps();};
   document.getElementById('apps-dir').onclick=function(){appsState.dir=appsState.dir==='asc'?'desc':'asc';renderApps();};
+  document.getElementById('apps-size').onchange=function(){appsState.pageSize=Number(this.value);appsState.page=1;renderApps();};
+  if(document.getElementById('apps-prev')) document.getElementById('apps-prev').onclick=function(){if(appsState.page>1){appsState.page--;renderApps();}};
+  if(document.getElementById('apps-next')) document.getElementById('apps-next').onclick=function(){if(appsState.page<pages){appsState.page++;renderApps();}};
   document.getElementById('apps-export').onclick=function(){
-    downloadCSV('enjeeoh-applications-'+new Date().toISOString().slice(0,10)+'.csv',
+    downloadCSV('enjeeoh-'+appsState.tab+'-applications-'+new Date().toISOString().slice(0,10)+'.csv',
       ['name','email','status','country','contact','website','members','max_members','suspended','applied'],
       appsFiltered().map(function(a){return [a.name,a.email,a.status,a.country,a.contactName,a.website,a.memberCount,a.maxMembers||0,a.suspended?'yes':'no',a.createdAt];}));
   };
