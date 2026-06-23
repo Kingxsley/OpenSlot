@@ -373,7 +373,8 @@ app.post('/api/login', loginLimiter, async (req, res) => {
   await audit(req, 'login.success', { accountId: member.accountId, actor: member.email, actorRole: member.role, text: 'password verified' });
 
   const account = await store.getAccountById(member.accountId);
-  if (account?.suspended) return res.status(403).json({ error: 'This organisation has been suspended.' });
+  if (account?.deleted) return res.status(403).json({ error: 'This organisation is no longer active.' });
+  if (account?.suspended) return res.status(403).json({ error: 'This organisation has been locked. Please contact support.' });
   if (member.suspended) return res.status(403).json({ error: 'Your access has been suspended.' });
 
   // Forced reset (set by an admin) or an expired password blocks login until reset.
@@ -783,7 +784,8 @@ app.delete('/api/org/members/:mid/event-types/:eid', requireMember, requireOrgAd
 
 async function approvedAccount(slug, res) {
   const a = await store.getAccountBySlug(slug);
-  if (!a) { res.status(404).json({ error: 'Organisation not found.' }); return null; }
+  if (!a || a.deleted) { res.status(404).json({ error: 'Organisation not found.' }); return null; }
+  if (a.suspended) { res.status(403).json({ error: 'This organisation is not currently available.' }); return null; }
   if (a.status !== 'approved') { res.status(403).json({ error: 'This organisation is not active yet.' }); return null; }
   return a;
 }
@@ -1097,7 +1099,7 @@ app.get('/api/console/me', requireConsole, (req, res) => res.json({ email: req.c
 
 app.get('/api/console/applications', requireConsole, requirePerm('onboarding'), async (_req, res) => {
   const all = await store.listAllAccounts();
-  res.json(await Promise.all(all.map(async a => ({ id: a.id, name: a.name, slug: a.slug, email: a.email, contactName: a.contactName, country: a.country, website: a.website, registrationId: a.registrationId, mission: a.mission, status: a.status, reviewNote: a.reviewNote, createdAt: a.createdAt, maxMembers: a.maxMembers || 0, memberCount: await store.countMembers(a.id), suspended: !!a.suspended, archived: !!a.archived }))));
+  res.json(await Promise.all(all.map(async a => ({ id: a.id, name: a.name, slug: a.slug, email: a.email, contactName: a.contactName, country: a.country, website: a.website, registrationId: a.registrationId, mission: a.mission, status: a.status, reviewNote: a.reviewNote, createdAt: a.createdAt, maxMembers: a.maxMembers || 0, memberCount: await store.countMembers(a.id), suspended: !!a.suspended, archived: !!a.archived, deleted: !!a.deleted }))));
 });
 app.get('/api/review/applications', requireConsole, async (req, res) => res.redirect(307, '/api/console/applications'));
 
@@ -1207,6 +1209,19 @@ app.post('/api/console/org/:id/archive', requireSuperAdmin, async (req, res) => 
 app.post('/api/console/org/:id/unarchive', requireSuperAdmin, async (req, res) => {
   const a = await store.updateAccount(req.params.id, { archived: false });
   await audit(req, 'org.unarchived', { accountId: req.params.id, accountName: a?.name });
+  res.json({ ok: true });
+});
+// Soft delete: mark as deleted (blocks all access, recoverable) — shown in the
+// Deleted tab. Data is kept until a permanent delete.
+app.post('/api/console/org/:id/soft-delete', requireSuperAdmin, async (req, res) => {
+  const a = await store.updateAccount(req.params.id, { deleted: true });
+  await audit(req, 'org.soft-deleted', { accountId: req.params.id, accountName: a?.name, text: 'moved to Deleted (recoverable)' });
+  res.json({ ok: true });
+});
+// Reactivate a locked or soft-deleted org — clears deleted/suspended/archived.
+app.post('/api/console/org/:id/reactivate', requireSuperAdmin, async (req, res) => {
+  const a = await store.updateAccount(req.params.id, { deleted: false, suspended: false, archived: false });
+  await audit(req, 'org.reactivated', { accountId: req.params.id, accountName: a?.name, text: 'reactivated' });
   res.json({ ok: true });
 });
 app.delete('/api/console/org/:id', requireSuperAdmin, async (req, res) => {

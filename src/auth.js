@@ -57,8 +57,8 @@ export async function requireMember(req, res, next) {
   if (!member || member.status !== 'active') return res.status(401).json({ error: 'Account not active.' });
   if (member.suspended) return res.status(403).json({ error: 'Your access has been suspended.' });
   const account = await store.getAccountById(member.accountId);
-  if (!account) return res.status(401).json({ error: 'Organisation not found.' });
-  if (account.suspended) return res.status(403).json({ error: 'This organisation has been suspended.' });
+  if (!account || account.deleted) return res.status(401).json({ error: 'Organisation not found.' });
+  if (account.suspended) return res.status(403).json({ error: 'This organisation has been locked.' });
   req.member = member; req.account = account;
   next();
 }
@@ -153,7 +153,9 @@ function emailFromName() { return process.env.EMAIL_FROM_NAME || 'Enjeeoh'; }
 function getTransporter() {
   if (!transporter && smtpHost()) {
     transporter = nodemailer.createTransport({ host: smtpHost(), port: smtpPort(),
-      secure: smtpPort() === 465, auth: { user: smtpUser(), pass: smtpPass() } });
+      secure: smtpPort() === 465, auth: { user: smtpUser(), pass: smtpPass() },
+      // Fail fast instead of hanging forever if the SMTP port is blocked/slow.
+      connectionTimeout: 12000, greetingTimeout: 10000, socketTimeout: 20000 });
   }
   return transporter;
 }

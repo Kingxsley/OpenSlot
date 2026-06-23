@@ -44,6 +44,14 @@
   .lim{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
   .lim input{width:90px}
   .pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px;flex-wrap:wrap}
+  .modal-ov{position:fixed;inset:0;background:rgba(10,12,22,.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:18px}
+  .modal-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;max-width:420px;width:100%;box-shadow:0 24px 60px rgba(10,12,40,.3)}
+  .modal-card h3{margin:0 0 8px;font:700 18px 'Space Grotesk'}
+  .modal-card p{margin:0 0 18px;color:var(--muted);font-size:14px;line-height:1.55}
+  .modal-acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 18px;border-radius:11px;font:600 13px Inter;z-index:300;opacity:0;transition:opacity .2s,transform .2s;max-width:90vw;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.err{background:#B0322B}.toast.ok{background:var(--accent)}
   .field{margin:10px 0}.field label{display:block;font:600 13px Inter;margin:0 0 4px}
   details.acc{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden}
   details.acc>summary{list-style:none;cursor:pointer;padding:13px 16px;font:600 14px Inter;display:flex;align-items:center;gap:8px;user-select:none}
@@ -102,6 +110,33 @@ function getCsrf(){var m=document.cookie.match(/(?:^|; )csrf=([^;]+)/);return m?
 function H(){return {'Content-Type':'application/json','X-CSRF-Token':getCsrf()};}
 function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':s);return d.innerHTML;}
 function attr(s){return String(s==null?'':s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+// In-app confirm dialog (replaces the browser's native confirm). Returns a Promise<boolean>.
+function appConfirm(opts){
+  opts=opts||{};
+  return new Promise(function(resolve){
+    var ov=document.createElement('div'); ov.className='modal-ov';
+    ov.innerHTML='<div class="modal-card" role="dialog" aria-modal="true">'+
+      '<h3>'+esc(opts.title||'Please confirm')+'</h3>'+
+      '<p>'+esc(opts.message||'Are you sure?')+'</p>'+
+      '<div class="modal-acts"><button class="ghost" data-act="cancel">'+esc(opts.cancelText||'Cancel')+'</button>'+
+      '<button class="'+(opts.danger?'no':'go')+'" data-act="ok">'+esc(opts.confirmText||'Confirm')+'</button></div></div>';
+    function close(val){ document.removeEventListener('keydown',onKey); ov.remove(); resolve(val); }
+    function onKey(e){ if(e.key==='Escape') close(false); if(e.key==='Enter') close(true); }
+    ov.addEventListener('click',function(e){ if(e.target===ov) close(false); });
+    ov.querySelector('[data-act=cancel]').onclick=function(){ close(false); };
+    ov.querySelector('[data-act=ok]').onclick=function(){ close(true); };
+    document.addEventListener('keydown',onKey);
+    document.body.appendChild(ov);
+    ov.querySelector('[data-act=ok]').focus();
+  });
+}
+// In-app toast (replaces alert for brief notices).
+function appToast(message,type){
+  var t=document.createElement('div'); t.className='toast'+(type?' '+type:''); t.textContent=message;
+  document.body.appendChild(t); requestAnimationFrame(function(){ t.classList.add('show'); });
+  setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); },250); }, type==='err'?4200:2600);
+}
 
 // ---- shared filter / sort / export helpers ----
 function textIncludes(obj, fields, q){ if(!q) return true; q=q.toLowerCase(); return fields.some(function(f){return String(obj[f]==null?'':obj[f]).toLowerCase().indexOf(q)>=0;}); }
@@ -262,7 +297,7 @@ function renderMembers(){
   };
   wireSort(scope,memState,renderMembers);
 }
-window.memForceReset=function(id){ if(!confirm('Require this member to set a new password before they can sign in again? They will be emailed a reset link.'))return; fetch('/api/console/member/'+id+'/force-reset',{method:'POST',headers:H()}).then(loadMembers); };
+window.memForceReset=function(id){ appConfirm({title:'Force password reset',message:'Require this member to set a new password before they can sign in again? They will be emailed a reset link.',confirmText:'Force reset'}).then(function(ok){ if(!ok)return; fetch('/api/console/member/'+id+'/force-reset',{method:'POST',headers:H()}).then(loadMembers); }); };
 window.memUnlock=function(id){ fetch('/api/console/member/'+id+'/unlock',{method:'POST',headers:H()}).then(loadMembers); };
 window.memSuspend=function(id,action){ fetch('/api/console/member/'+id+'/'+action,{method:'POST',headers:H()}).then(loadMembers); };
 
@@ -336,16 +371,18 @@ window.addAdmin=function(){
 };
 window.rmAdmin=function(id){fetch('/api/console/admins/'+id,{method:'DELETE',headers:H()}).then(loadAdmins);};
 
-// ================= ORGANISATIONS =================
-var orgState={raw:[],limits:{},q:'',status:'',sort:'name',dir:'asc'};
+// ================= ORGANISATIONS (active / locked / deleted) =================
+var orgState={raw:[],limits:{},tab:'active',q:'',sort:'name',dir:'asc'};
 function loadLimits(){
   Promise.all([
     fetch('/api/console/limits',{headers:H()}).then(function(r){return r.json();}),
     fetch('/api/console/applications',{headers:H()}).then(function(r){return r.json();})
   ]).then(function(res){ orgState.limits=res[0]; orgState.raw=res[1]; renderLimits(); });
 }
+function orgBucket(a){ return a.deleted?'deleted':(a.suspended?'locked':'active'); }
+function orgCount(tab){ return orgState.raw.filter(function(a){return orgBucket(a)===tab;}).length; }
 function orgsFiltered(){
-  var rows=orgState.raw.filter(function(a){ if(orgState.status==='suspended'&&!a.suspended)return false; if(orgState.status==='archived'&&!a.archived)return false; if(['pending','approved','rejected'].indexOf(orgState.status)>=0&&a.status!==orgState.status)return false; return textIncludes(a,['name','email','slug','country'],orgState.q); });
+  var rows=orgState.raw.filter(function(a){ return orgBucket(a)===orgState.tab && textIncludes(a,['name','email','slug','country'],orgState.q); });
   return sortRows(rows,orgState.sort,orgState.dir);
 }
 function renderLimits(){
@@ -355,36 +392,51 @@ function renderLimits(){
     '<div class="lim" style="margin-top:12px">Global maximum users (all enterprises): <input type="number" min="0" id="gmax" value="'+(l.globalMax||0)+'"></div>'+
     '<div class="lim">Default maximum per new organisation: <input type="number" min="0" id="odef" value="'+(l.orgDefault||0)+'"></div>'+
     '<div class="lim"><button class="go" onclick="saveLimits()">Save limits</button> <span class="meta">(0 = no limit)</span></div></div>';
-  var toolbar='<div class="card"><div class="toolbar">'+
+  var subtabs='<div class="tabs" style="margin:0 0 12px">'+[['active','Active'],['locked','Locked'],['deleted','Deleted']].map(function(t){
+    return '<button class="tab'+(orgState.tab===t[0]?' on':'')+'" data-orgtab="'+t[0]+'">'+t[1]+' <span class="badge b-'+(t[0]==='active'?'approved':(t[0]==='locked'?'pending':'rejected'))+'" style="padding:2px 7px">'+orgCount(t[0])+'</span></button>';
+  }).join('')+'</div>';
+  var toolbar='<div class="card">'+subtabs+'<div class="toolbar">'+
     '<input type="search" id="org-q" placeholder="Search organisation..." value="'+attr(orgState.q)+'">'+
-    '<select id="org-status"><option value="">All</option>'+['pending','approved','rejected','suspended','archived'].map(function(s){return '<option value="'+s+'"'+(orgState.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'+
-    '<select id="org-sort">'+[['name','Name'],['createdAt','Newest'],['status','Status'],['memberCount','Members']].map(function(o){return '<option value="'+o[0]+'"'+(orgState.sort===o[0]?' selected':'')+'>Sort: '+o[1]+'</option>';}).join('')+'</select>'+
+    '<select id="org-sort">'+[['name','Name'],['createdAt','Newest'],['memberCount','Members']].map(function(o){return '<option value="'+o[0]+'"'+(orgState.sort===o[0]?' selected':'')+'>Sort: '+o[1]+'</option>';}).join('')+'</select>'+
     '<button class="ghost" id="org-dir">'+(orgState.dir==='asc'?'Asc ▲':'Desc ▼')+'</button>'+
     '<button class="ghost" id="org-export">Export CSV</button></div><div class="meta" id="org-count"></div></div>';
   var rows=orgsFiltered();
+  var tab=orgState.tab;
   var list=rows.map(function(a){
-    return '<div class="card"'+(a.archived?' style="opacity:.6"':'')+'><div class="row"><div><b>'+esc(a.name)+'</b>'+(a.archived?' <span class="badge b-rejected">archived</span>':'')+(a.suspended?' <span class="badge b-rejected">suspended</span>':'')+' <span class="badge b-'+a.status+'">'+a.status+'</span>'+
+    var badge=tab==='deleted'?' <span class="badge b-rejected">deleted</span>':(tab==='locked'?' <span class="badge b-locked">locked</span>':'')+' <span class="badge b-'+a.status+'">'+a.status+'</span>';
+    var acts='Max members: <input type="number" min="0" id="cap-'+a.id+'" value="'+(a.maxMembers||0)+'"> <button class="ghost" onclick="setOrgCap2(\''+a.id+'\')">Save cap</button>';
+    if(tab==='active'){
+      acts+='<button class="no" onclick="orgLock(\''+a.id+'\',\''+attr(a.name)+'\')">Lock access</button>'+
+        '<button class="ghost" onclick="orgForceReset(\''+a.id+'\',\''+attr(a.name)+'\')">Force reset all</button>'+
+        '<button class="no" onclick="orgSoftDelete(\''+a.id+'\',\''+attr(a.name)+'\')">Delete</button>'+
+        '<button class="ghost" onclick="toggleMembers(\''+a.id+'\')">Members</button>';
+    } else if(tab==='locked'){
+      acts+='<button class="go" onclick="orgReactivate(\''+a.id+'\')">Unlock</button>'+
+        '<button class="no" onclick="orgSoftDelete(\''+a.id+'\',\''+attr(a.name)+'\')">Delete</button>'+
+        '<button class="ghost" onclick="toggleMembers(\''+a.id+'\')">Members</button>';
+    } else {
+      acts+='<button class="go" onclick="orgReactivate(\''+a.id+'\')">Reactivate</button>'+
+        '<button class="no" onclick="orgPurge(\''+a.id+'\',\''+attr(a.name)+'\')">Delete permanently</button>';
+    }
+    return '<div class="card"'+(tab!=='active'?' style="opacity:.75"':'')+'><div class="row"><div><b>'+esc(a.name)+'</b>'+badge+
       '<div class="meta">'+esc(a.email)+' · '+a.memberCount+' members'+(a.maxMembers>0?' (cap '+a.maxMembers+')':' (no cap)')+'</div></div></div>'+
-      '<div class="lim" style="margin-top:8px">Max members: <input type="number" min="0" id="cap-'+a.id+'" value="'+(a.maxMembers||0)+'"> <button class="ghost" onclick="setOrgCap2(\''+a.id+'\')">Save cap</button>'+
-      (a.suspended?'<button class="go" onclick="orgAccess(\''+a.id+'\',\'restore\')">Restore access</button>':'<button class="no" onclick="orgAccess(\''+a.id+'\',\'suspend\')">Revoke access</button>')+
-      '<button class="ghost" onclick="orgForceReset(\''+a.id+'\',\''+attr(a.name)+'\')">Force reset all</button>'+
-      (a.archived?'<button class="ghost" onclick="orgArchive(\''+a.id+'\',\'unarchive\')">Unarchive</button>':'<button class="ghost" onclick="orgArchive(\''+a.id+'\',\'archive\')">Archive</button>')+
-      '<button class="no" onclick="orgDelete(\''+a.id+'\',\''+attr(a.name)+'\')">Delete</button>'+
-      '<button class="ghost" onclick="toggleMembers(\''+a.id+'\')">Members</button></div><div id="mem-'+a.id+'" class="hide" style="margin-top:8px"></div></div>';
+      '<div class="lim" style="margin-top:8px">'+acts+'</div><div id="mem-'+a.id+'" class="hide" style="margin-top:8px"></div></div>';
   }).join('');
-  document.getElementById('limits').innerHTML=top+toolbar+'<h3 style="margin:16px 0 8px;font:600 15px Space Grotesk">All organisations</h3>'+(list||'<div class="card">No matching organisations.</div>');
-  document.getElementById('org-count').textContent=rows.length+' of '+orgState.raw.length+' organisations';
+  var blurb=tab==='locked'?'<p class="meta" style="margin:0 0 8px">Locked organisations cannot sign in or take bookings. Unlock to restore full access.</p>':(tab==='deleted'?'<p class="meta" style="margin:0 0 8px">Deleted organisations are hidden and have no access, but their data is kept. Reactivate to restore, or delete permanently to erase it forever.</p>':'');
+  document.getElementById('limits').innerHTML=top+toolbar+blurb+(list||'<div class="card">No '+tab+' organisations'+(orgState.q?' match your search.':'.')+'</div>');
+  document.getElementById('org-count').textContent=rows.length+' '+tab+(orgState.q?' matching':'')+' organisation'+(rows.length===1?'':'s');
+  document.querySelectorAll('[data-orgtab]').forEach(function(b){b.onclick=function(){orgState.tab=b.dataset.orgtab;renderLimits();};});
   document.getElementById('org-q').oninput=function(){orgState.q=this.value;renderLimits();var i=document.getElementById('org-q');i.focus();i.setSelectionRange(i.value.length,i.value.length);};
-  document.getElementById('org-status').onchange=function(){orgState.status=this.value;renderLimits();};
   document.getElementById('org-sort').onchange=function(){orgState.sort=this.value;renderLimits();};
   document.getElementById('org-dir').onclick=function(){orgState.dir=orgState.dir==='asc'?'desc':'asc';renderLimits();};
-  document.getElementById('org-export').onclick=function(){ downloadCSV('enjeeoh-organisations-'+new Date().toISOString().slice(0,10)+'.csv',['name','email','status','members','max_members','suspended','archived','created'],orgsFiltered().map(function(a){return [a.name,a.email,a.status,a.memberCount,a.maxMembers||0,a.suspended?'yes':'no',a.archived?'yes':'no',a.createdAt];})); };
+  document.getElementById('org-export').onclick=function(){ downloadCSV('enjeeoh-organisations-'+tab+'-'+new Date().toISOString().slice(0,10)+'.csv',['name','email','status','members','max_members','state','created'],orgsFiltered().map(function(a){return [a.name,a.email,a.status,a.memberCount,a.maxMembers||0,orgBucket(a),a.createdAt];})); };
 }
 window.setOrgCap2=function(id){ fetch('/api/console/org/'+id+'/limit',{method:'PUT',headers:H(),body:JSON.stringify({maxMembers:document.getElementById('cap-'+id).value})}).then(loadLimits); };
-window.orgAccess=function(id,action){ if(action==='suspend'&&!confirm('Revoke access for this whole organisation? Its members will not be able to sign in.'))return; fetch('/api/console/org/'+id+'/'+action,{method:'POST',headers:H()}).then(loadLimits); };
-window.orgArchive=function(id,action){ fetch('/api/console/org/'+id+'/'+action,{method:'POST',headers:H()}).then(loadLimits); };
-window.orgForceReset=function(id,name){ if(!confirm('Force every active member of "'+name+'" to set a new password before signing in again? Each is emailed a reset link.'))return; fetch('/api/console/org/'+id+'/force-reset',{method:'POST',headers:H()}).then(function(r){return r.json();}).then(function(d){ alert('Reset required for '+(d.count||0)+' members.'); }); };
-window.orgDelete=function(id,name){ if(!confirm('Permanently delete "'+name+'" and all its members, bookings and data? This cannot be undone.'))return; if(!confirm('Are you absolutely sure? This is irreversible.'))return; fetch('/api/console/org/'+id,{method:'DELETE',headers:H()}).then(loadLimits); };
+window.orgLock=function(id,name){ appConfirm({title:'Lock organisation',message:'Lock "'+name+'"? All access is blocked — its members cannot sign in and its booking pages stop working — until you unlock it.',confirmText:'Lock access',danger:true}).then(function(ok){ if(ok) fetch('/api/console/org/'+id+'/suspend',{method:'POST',headers:H()}).then(loadLimits); }); };
+window.orgReactivate=function(id){ fetch('/api/console/org/'+id+'/reactivate',{method:'POST',headers:H()}).then(function(){ appToast('Organisation reactivated.','ok'); loadLimits(); }); };
+window.orgSoftDelete=function(id,name){ appConfirm({title:'Delete organisation',message:'Move "'+name+'" to Deleted? It loses all access immediately, but its data is kept so you can reactivate it later.',confirmText:'Delete',danger:true}).then(function(ok){ if(ok) fetch('/api/console/org/'+id+'/soft-delete',{method:'POST',headers:H()}).then(loadLimits); }); };
+window.orgPurge=function(id,name){ appConfirm({title:'Delete permanently',message:'Permanently erase "'+name+'" and all its members, bookings and data? This cannot be undone.',confirmText:'Delete forever',danger:true}).then(function(ok){ if(!ok)return; appConfirm({title:'Are you absolutely sure?',message:'This is irreversible. Everything belonging to "'+name+'" will be erased.',confirmText:'Yes, erase it',danger:true}).then(function(ok2){ if(ok2) fetch('/api/console/org/'+id,{method:'DELETE',headers:H()}).then(loadLimits); }); }); };
+window.orgForceReset=function(id,name){ appConfirm({title:'Force reset all members',message:'Force every active member of "'+name+'" to set a new password before signing in again? Each is emailed a reset link.',confirmText:'Force reset all',danger:true}).then(function(ok){ if(!ok)return; fetch('/api/console/org/'+id+'/force-reset',{method:'POST',headers:H()}).then(function(r){return r.json();}).then(function(d){ appToast('Reset required for '+(d.count||0)+' members.','ok'); }); }); };
 window.toggleMembers=function(id){
   var box=document.getElementById('mem-'+id); if(!box.classList.contains('hide')){box.classList.add('hide');return;}
   box.classList.remove('hide');
@@ -433,7 +485,7 @@ window.bulkAdd=function(id){
 function reopenMembers(oid){ document.getElementById('mem-'+oid).classList.add('hide'); toggleMembers(oid); }
 window.memAccess=function(mid,action,oid){ fetch('/api/console/member/'+mid+'/'+action,{method:'POST',headers:H()}).then(function(){ reopenMembers(oid); }); };
 window.memUnlock2=function(mid,oid){ fetch('/api/console/member/'+mid+'/unlock',{method:'POST',headers:H()}).then(function(){ reopenMembers(oid); }); };
-window.memReset2=function(mid,oid){ if(!confirm('Require this member to reset their password?'))return; fetch('/api/console/member/'+mid+'/force-reset',{method:'POST',headers:H()}).then(function(){ reopenMembers(oid); }); };
+window.memReset2=function(mid,oid){ appConfirm({title:'Force password reset',message:'Require this member to reset their password? They will be emailed a reset link.',confirmText:'Force reset'}).then(function(ok){ if(!ok)return; fetch('/api/console/member/'+mid+'/force-reset',{method:'POST',headers:H()}).then(function(){ reopenMembers(oid); }); }); };
 window.saveLimits=function(){ fetch('/api/console/limits',{method:'PUT',headers:H(),body:JSON.stringify({globalMax:document.getElementById('gmax').value,orgDefault:document.getElementById('odef').value})}).then(loadLimits); };
 
 // ================= EMAIL TEMPLATES (visual editor only) =================
@@ -473,7 +525,7 @@ window.saveTpl=function(k){
   fetch('/api/console/email-templates/'+k,{method:'PUT',headers:H(),body:JSON.stringify({subject:document.getElementById('et-sub-'+k).value,html:document.getElementById('et-html-'+k).innerHTML})})
     .then(function(r){return r.json();}).then(function(){ msg.style.color='var(--accent)'; msg.textContent='Saved.'; setTimeout(loadEmails,600); });
 };
-window.resetTpl=function(k){ if(!confirm('Restore this template to its default?'))return; fetch('/api/console/email-templates/'+k,{method:'DELETE',headers:H()}).then(loadEmails); };
+window.resetTpl=function(k){ appConfirm({title:'Reset email template',message:'Restore this template to its built-in default? Your customised version will be lost.',confirmText:'Reset to default',danger:true}).then(function(ok){ if(!ok)return; fetch('/api/console/email-templates/'+k,{method:'DELETE',headers:H()}).then(loadEmails); }); };
 
 // ================= DESIGN =================
 var navItems=[];

@@ -177,6 +177,13 @@ async function run() {
   ok((await api('/api/console/org/' + orgId + '/members', { token: SAT })).data.some(m => m.email === 'bulk1@careco.org' && m.status === 'invited'), 'bulk members created as invited');
   ok((await api('/api/console/org/' + orgId + '/members/bulk', { method: 'POST', token: ON2, body: { members: [{ email: 'x@careco.org' }] } })).status === 403, 'non-super-admin cannot bulk add');
 
+  // ---- org soft-delete (Deleted tab) + reactivate ----
+  ok((await api('/api/console/org/' + orgId + '/soft-delete', { method: 'POST', token: SAT })).status === 200, 'super admin soft-deletes an org');
+  ok((await api('/api/console/applications', { token: SAT })).data.find(a => a.id === orgId).deleted === true, 'soft-deleted org is flagged deleted');
+  ok((await api('/api/login', { method: 'POST', body: { email: 'mem@careco.org', password: 'memberpass12' } })).status === 403, 'login blocked while org is deleted');
+  ok((await api('/api/console/org/' + orgId + '/reactivate', { method: 'POST', token: SAT })).status === 200, 'super admin reactivates the org');
+  ok((await api('/api/console/applications', { token: SAT })).data.find(a => a.id === orgId).deleted === false, 'reactivated org is no longer deleted');
+
   // ---- v2: multi-coach services ----
   const adaId = (await api('/api/me', { token: ADMIN })).data.member.id;
   await api('/api/me/profile', { method: 'PUT', token: ADMIN, body: { title: 'Lead Coach', bio: 'Ten years experience.', imageUrl: 'https://example.org/ada.jpg' } });

@@ -51,6 +51,16 @@
     .tabs{flex-wrap:wrap}
     pre,code,.mono{white-space:pre-wrap;word-break:break-all}
   }
+  .modal-ov{position:fixed;inset:0;background:rgba(10,12,22,.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:18px}
+  .modal-card{background:var(--card,#fff);border:1px solid var(--line);border-radius:16px;padding:22px;max-width:430px;width:100%;box-shadow:0 24px 60px rgba(10,12,40,.3)}
+  .modal-card h3{margin:0 0 8px;font:700 18px 'Space Grotesk',sans-serif}
+  .modal-card p{margin:0 0 18px;color:var(--muted);font-size:14px;line-height:1.55;white-space:pre-wrap}
+  .modal-acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+  .modal-acts button{border:0;border-radius:10px;padding:10px 16px;font:600 14px Inter;cursor:pointer}
+  .modal-acts .mc-ok{background:var(--accent);color:#fff}.modal-acts .mc-no{background:#fff;color:#991B1B;border:1px solid #FCA5A5}.modal-acts .mc-cancel{background:var(--card,#fff);border:1px solid var(--line);color:var(--ink,#15162a)}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink,#15162a);color:#fff;padding:12px 18px;border-radius:11px;font:600 13px Inter;z-index:300;opacity:0;transition:opacity .2s,transform .2s;max-width:90vw;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.err{background:#B0322B}.toast.ok{background:var(--accent)}
 </style>
 </head>
 <body>
@@ -292,6 +302,19 @@ const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturda
 // the public, unauthenticated booking form, so they are untrusted and must never
 // be interpolated raw into this authenticated dashboard.
 function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':s);return d.innerHTML;}
+// In-app dialogs (replace the browser's native confirm/alert).
+function appConfirm(opts){ opts=opts||{}; return new Promise(function(resolve){
+  var ov=document.createElement('div'); ov.className='modal-ov';
+  ov.innerHTML='<div class="modal-card" role="dialog" aria-modal="true"><h3>'+esc(opts.title||'Please confirm')+'</h3><p>'+esc(opts.message||'Are you sure?')+'</p><div class="modal-acts">'+(opts.alert?'':'<button class="mc-cancel" data-act="cancel">'+esc(opts.cancelText||'Cancel')+'</button>')+'<button class="'+(opts.danger?'mc-no':'mc-ok')+'" data-act="ok">'+esc(opts.confirmText||'Confirm')+'</button></div></div>';
+  function close(v){ document.removeEventListener('keydown',onKey); ov.remove(); resolve(v); }
+  function onKey(e){ if(e.key==='Escape') close(false); if(e.key==='Enter') close(true); }
+  ov.addEventListener('click',function(e){ if(e.target===ov) close(false); });
+  var c=ov.querySelector('[data-act=cancel]'); if(c) c.onclick=function(){ close(false); };
+  ov.querySelector('[data-act=ok]').onclick=function(){ close(true); };
+  document.addEventListener('keydown',onKey); document.body.appendChild(ov); ov.querySelector('[data-act=ok]').focus();
+}); }
+function appAlert(title,message,confirmText){ return appConfirm({title:title,message:message,confirmText:confirmText||'OK',alert:true}); }
+function appToast(message,type){ var t=document.createElement('div'); t.className='toast'+(type?' '+type:''); t.textContent=message; document.body.appendChild(t); requestAnimationFrame(function(){ t.classList.add('show'); }); setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); },250); }, type==='err'?4200:2600); }
 async function api(p,o={}){ o.headers=Object.assign({'Content-Type':'application/json'},o.headers||{}); if((o.method||'GET')!=='GET') o.headers['X-CSRF-Token']=getCsrf(); o.credentials='same-origin'; const r=await fetch(p,o); const d=await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.error||'Request failed'); return d; }
 
 var blockedSet=new Set(); var calView=new Date();
@@ -313,14 +336,14 @@ function renderCal(){
 document.getElementById('cal-prev').onclick=function(){calView.setMonth(calView.getMonth()-1);renderCal();};
 document.getElementById('cal-next').onclick=function(){calView.setMonth(calView.getMonth()+1);renderCal();};
 document.getElementById('days-save').onclick=async function(){
-  try{ await api('/api/me/availability',{method:'PUT',body:JSON.stringify({blockedDates:Array.from(blockedSet)})}); var ok=document.getElementById('days-ok'); ok.classList.remove('hidden'); setTimeout(function(){ok.classList.add('hidden');},1500); }catch(e){ alert(e.message); }
+  try{ await api('/api/me/availability',{method:'PUT',body:JSON.stringify({blockedDates:Array.from(blockedSet)})}); var ok=document.getElementById('days-ok'); ok.classList.remove('hidden'); setTimeout(function(){ok.classList.add('hidden');},1500); }catch(e){ appToast(e.message,'err'); }
 };
 
 function renderMfa(m){
   const box=document.getElementById('mfaStatus'); if(!box) return;
   if(m.mfaEnabled){
     box.innerHTML='<p style="margin:0 0 10px"><b style="color:var(--accent)">Two factor is on.</b></p><button class="ghost sm" id="mfa-off">Turn off two factor</button>';
-    document.getElementById('mfa-off').onclick=async()=>{ const code=prompt('Enter a current code from your authenticator app to turn two factor off:'); if(!code)return; try{ await api('/api/me/mfa/disable',{method:'POST',body:JSON.stringify({code})}); boot(); }catch(e){ alert(e.message); } };
+    document.getElementById('mfa-off').onclick=async()=>{ const code=prompt('Enter a current code from your authenticator app to turn two factor off:'); if(!code)return; try{ await api('/api/me/mfa/disable',{method:'POST',body:JSON.stringify({code})}); boot(); }catch(e){ appToast(e.message,'err'); } };
   } else {
     box.innerHTML='<button class="ghost sm" id="mfa-on">Set up two factor</button><div id="mfa-setup-area" style="margin-top:12px"></div>';
     document.getElementById('mfa-on').onclick=async()=>{
@@ -328,7 +351,7 @@ function renderMfa(m){
       document.getElementById('mfa-setup-area').innerHTML='<img src="'+sd.qr+'" alt="QR" style="width:160px;height:160px;display:block"><p class="sub" style="margin:6px 0">Scan with an authenticator app, or use this key: <code style="word-break:break-all">'+sd.secret+'</code></p><input id="mfa-on-code" placeholder="123456" style="max-width:160px"> <button class="ghost sm" id="mfa-on-confirm">Confirm</button><div class="err" id="mfa-on-err"></div>';
       document.getElementById('mfa-on-confirm').onclick=async()=>{
         const e=document.getElementById('mfa-on-err'); e.textContent='';
-        try{ const d=await api('/api/me/mfa/enable',{method:'POST',body:JSON.stringify({code:document.getElementById('mfa-on-code').value.trim()})}); alert('Two factor is on. Save these recovery codes somewhere safe:\n\n'+d.recovery.join('\n')); boot(); }
+        try{ const d=await api('/api/me/mfa/enable',{method:'POST',body:JSON.stringify({code:document.getElementById('mfa-on-code').value.trim()})}); await appAlert('Two factor enabled','Save these recovery codes somewhere safe:\n\n'+d.recovery.join('\n'),'Saved them'); boot(); }
         catch(err){ e.textContent=err.message; }
       };
     };
@@ -351,7 +374,7 @@ document.getElementById('li-btn').onclick=async()=>{
   const err=document.getElementById('li-err'); err.textContent='';
   try{ const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('li-email').value.trim(),password:document.getElementById('li-pass').value})});
     const d=await r.json(); if(!r.ok) throw new Error(d.error);
-    if(d.passwordResetRequired){ alert(d.reason||'You must set a new password before signing in.'); location.href=d.resetUrl; return; }
+    if(d.passwordResetRequired){ await appAlert('Set a new password', d.reason||'You must set a new password before signing in.', 'Continue'); location.href=d.resetUrl; return; }
     if(d.mfaRequired){ window._mfaToken=d.mfaToken; document.getElementById('mfaStep').style.display='block'; document.getElementById('mfa-code').focus(); return; }
     if(d.mfaEnrollRequired){ pendingSetupToken=d.setupToken; const s=await fetch('/api/me/mfa/setup',{method:'POST',headers:{'Authorization':'Bearer '+pendingSetupToken}}); const sd=await s.json(); document.getElementById('enroll-qr').src=sd.qr; document.getElementById('enroll-secret').textContent=sd.secret; document.getElementById('enrollStep').style.display='block'; return; }
     boot(); // session cookie is set by the server response
@@ -366,7 +389,7 @@ document.getElementById('mfa-btn').onclick=async()=>{
 document.getElementById('enroll-btn').onclick=async()=>{
   const err=document.getElementById('enroll-err'); err.textContent='';
   try{ const r=await fetch('/api/me/mfa/enable',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+pendingSetupToken},body:JSON.stringify({code:document.getElementById('enroll-code').value.trim()})});
-    const d=await r.json(); if(!r.ok) throw new Error(d.error); alert('Two factor is on. Save these recovery codes somewhere safe:\n\n'+d.recovery.join('\n')); boot();
+    const d=await r.json(); if(!r.ok) throw new Error(d.error); await appAlert('Two factor enabled','Save these recovery codes somewhere safe:\n\n'+d.recovery.join('\n'),'Saved them'); boot();
   }catch(e){ err.textContent=e.message; }
 };
 document.getElementById('logout').onclick=async()=>{ try{ await fetch('/api/logout',{method:'POST',headers:{'X-CSRF-Token':getCsrf()},credentials:'same-origin'}); }catch(e){} location.reload(); };
@@ -432,9 +455,9 @@ function render(){
     el.innerHTML=`<div><h3>${esc(b.title)}</h3><p>${esc(b.name)} · ${esc(b.email)}</p><p>${when}</p>
       <div class="rs" data-rsbox="${b.id}" style="display:none;margin-top:8px"><input type="datetime-local" data-rsinput="${b.id}" style="padding:8px;border:1px solid var(--line);border-radius:8px"> <button class="ghost sm" data-rssave="${b.id}">Save new time</button></div></div>
       <div style="display:flex;gap:8px"><button class="ghost sm" data-resched="${b.id}">Reschedule</button><button class="danger" data-cancel="${b.id}">Cancel</button></div>`; bk.appendChild(el); });
-  bk.querySelectorAll('[data-cancel]').forEach(b=>b.onclick=async()=>{ if(confirm('Cancel this booking? The person who booked will be emailed.')){ await api('/api/me/bookings/'+b.dataset.cancel,{method:'DELETE'}); boot(); } });
+  bk.querySelectorAll('[data-cancel]').forEach(b=>b.onclick=async()=>{ if(await appConfirm({title:'Cancel booking',message:'Cancel this booking? The person who booked will be emailed.',confirmText:'Cancel booking',danger:true})){ try{ await api('/api/me/bookings/'+b.dataset.cancel,{method:'DELETE'}); boot(); }catch(e){ appToast(e.message,'err'); } } });
   bk.querySelectorAll('[data-resched]').forEach(b=>b.onclick=()=>{ const box=bk.querySelector('[data-rsbox="'+b.dataset.resched+'"]'); box.style.display=box.style.display==='none'?'block':'none'; });
-  bk.querySelectorAll('[data-rssave]').forEach(b=>b.onclick=async()=>{ const v=bk.querySelector('[data-rsinput="'+b.dataset.rssave+'"]').value; if(!v)return; const r=await api('/api/org/bookings/'+b.dataset.rssave+'/reschedule',{method:'POST',body:JSON.stringify({start:new Date(v).toISOString()})}); if(r&&r.error){alert(r.error);return;} boot(); });
+  bk.querySelectorAll('[data-rssave]').forEach(b=>b.onclick=async()=>{ const v=bk.querySelector('[data-rsinput="'+b.dataset.rssave+'"]').value; if(!v)return; try{ const r=await api('/api/org/bookings/'+b.dataset.rssave+'/reschedule',{method:'POST',body:JSON.stringify({start:new Date(v).toISOString()})}); if(r&&r.error){appToast(r.error,'err');return;} boot(); }catch(e){ appToast(e.message,'err'); } });
 
   if(m.role==='admin') renderOrg();
 }
@@ -461,8 +484,8 @@ function renderOrg(){
     el.innerHTML=`<div style="display:flex;align-items:center"><span class="av">${esc(initials(mem.name))}</span><div><div style="font-weight:600;font-size:14px">${esc(mem.name)} ${mem.role==='admin'?'<span class="tag">admin</span>':''}</div><div class="sub" style="margin:0">${esc(mem.email)} ${mem.status==='invited'?'· <span class="tag">invited</span>':''} ${lockedTag}</div></div></div>
       <div style="display:flex;gap:8px">${unlockBtn}${mem.status==='invited'?`<button class="ghost sm" data-link="${esc(mem.inviteToken)}">Invite link</button>`:''}<button class="ghost sm" data-manage="${esc(mem.id)}" data-name="${esc(mem.name)}">Set up</button>${mem.role!=='admin'||(STATE.members.filter(x=>x.role==='admin').length>1)?`<button class="danger" data-remove="${esc(mem.id)}">Remove</button>`:''}</div>`;
     ml.appendChild(el); });
-  ml.querySelectorAll('[data-unlock]').forEach(b=>b.onclick=async()=>{ try{ await api('/api/org/members/'+b.dataset.unlock+'/unlock',{method:'POST'}); boot(); }catch(e){ alert(e.message); } });
-  ml.querySelectorAll('[data-remove]').forEach(b=>b.onclick=async()=>{ if(confirm('Remove this member?')){ try{ await api('/api/org/members/'+b.dataset.remove,{method:'DELETE'}); boot(); }catch(e){ alert(e.message); } } });
+  ml.querySelectorAll('[data-unlock]').forEach(b=>b.onclick=async()=>{ try{ await api('/api/org/members/'+b.dataset.unlock+'/unlock',{method:'POST'}); boot(); }catch(e){ appToast(e.message,'err'); } });
+  ml.querySelectorAll('[data-remove]').forEach(b=>b.onclick=async()=>{ if(await appConfirm({title:'Remove member',message:'Remove this member from the organisation? Their bookings will be cancelled.',confirmText:'Remove',danger:true})){ try{ await api('/api/org/members/'+b.dataset.remove,{method:'DELETE'}); boot(); }catch(e){ appToast(e.message,'err'); } } });
   ml.querySelectorAll('[data-link]').forEach(b=>b.onclick=()=>{ prompt('Share this invite link:', location.origin+'/join?token='+b.dataset.link); });
   ml.querySelectorAll('[data-manage]').forEach(b=>b.onclick=()=>openManage(b.dataset.manage,b.dataset.name));
   renderServices();
@@ -482,7 +505,7 @@ function renderServices(){
     el.innerHTML=`<div><h3>${esc(s.name)} ${s.active?'':'<span class="tag">hidden</span>'}</h3><p>${esc(s.durationMins)} min · ${LOCLABEL[s.location]||s.location} · ${ASSIGNLABEL[s.assignMode]||s.assignMode}${(s.capacity||1)>1?' · <span class="tag">group · '+s.capacity+' seats</span>':''}${(s.intakeQuestions||[]).length?' · '+s.intakeQuestions.length+' question'+(s.intakeQuestions.length>1?'s':''):''}</p><p class="sub" style="margin:2px 0 0">${names}</p></div><div style="display:flex;gap:8px"><button class="ghost sm" data-svcedit="${esc(s.id)}">Edit</button><button class="danger" data-svcdel="${esc(s.id)}">Delete</button></div>`;
     wrap.appendChild(el);
   });
-  wrap.querySelectorAll('[data-svcdel]').forEach(b=>b.onclick=async()=>{ if(confirm('Delete this service?')){ try{ await api('/api/org/services/'+b.dataset.svcdel,{method:'DELETE'}); boot(); }catch(e){ alert(e.message); } } });
+  wrap.querySelectorAll('[data-svcdel]').forEach(b=>b.onclick=async()=>{ if(await appConfirm({title:'Delete service',message:'Delete this service? Its booking page will no longer be available.',confirmText:'Delete',danger:true})){ try{ await api('/api/org/services/'+b.dataset.svcdel,{method:'DELETE'}); boot(); }catch(e){ appToast(e.message,'err'); } } });
   wrap.querySelectorAll('[data-svcedit]').forEach(b=>b.onclick=()=>editService(b.dataset.svcedit));
   renderCoachChecks();
 }
@@ -585,13 +608,13 @@ document.getElementById('svc-save').onclick=async()=>{
 document.getElementById('svc-cancel').onclick=resetSvcForm;
 document.getElementById('svc-addq').onclick=()=>addIntakeRow();
 
-document.getElementById('pol-switch').onclick=async()=>{ try{ const d=await api('/api/org/settings',{method:'PUT',body:JSON.stringify({memberSelfManage:!STATE.account.memberSelfManage})}); STATE.account.memberSelfManage=d.account.memberSelfManage; boot(); }catch(e){ alert(e.message); } };
+document.getElementById('pol-switch').onclick=async()=>{ try{ const d=await api('/api/org/settings',{method:'PUT',body:JSON.stringify({memberSelfManage:!STATE.account.memberSelfManage})}); STATE.account.memberSelfManage=d.account.memberSelfManage; boot(); }catch(e){ appToast(e.message,'err'); } };
 document.getElementById('o-save').onclick=async()=>{ await api('/api/org/settings',{method:'PUT',body:JSON.stringify({name:document.getElementById('o-name').value,website:document.getElementById('o-web').value,brandColor:document.getElementById('o-color').value,timezone:document.getElementById('o-tz').value,customDomain:document.getElementById('o-domain').value.trim()})}); flash('o-ok'); boot(); };
-document.getElementById('p-save').onclick=async()=>{ try{ await api('/api/me/profile',{method:'PUT',body:JSON.stringify({name:document.getElementById('p-name').value.trim(),title:document.getElementById('p-title').value.trim(),imageUrl:document.getElementById('p-image').value.trim(),bio:document.getElementById('p-bio').value.trim()})}); flash('p-ok'); boot(); }catch(e){ alert(e.message); } };
+document.getElementById('p-save').onclick=async()=>{ try{ await api('/api/me/profile',{method:'PUT',body:JSON.stringify({name:document.getElementById('p-name').value.trim(),title:document.getElementById('p-title').value.trim(),imageUrl:document.getElementById('p-image').value.trim(),bio:document.getElementById('p-bio').value.trim()})}); flash('p-ok'); boot(); }catch(e){ appToast(e.message,'err'); } };
 document.getElementById('bp-save').onclick=async()=>{ try{
   const bpg={}; ['welcome','headline','servicePrompt','teamPrompt','dayPrompt','timesLabel','confirmButton','thankYouHeading','thankYouNote'].forEach(k=>{ bpg[k]=document.getElementById('bp-'+k).value.trim(); });
   await api('/api/org/settings',{method:'PUT',body:JSON.stringify({bookingPage:bpg})}); flash('bp-ok'); boot();
-}catch(e){ alert(e.message); } };
+}catch(e){ appToast(e.message,'err'); } };
 
 document.getElementById('m-invite').onclick=async()=>{
   const err=document.getElementById('m-err'); err.textContent='';
