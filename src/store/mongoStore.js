@@ -101,6 +101,8 @@ export const mongoStore = {
 
   async createBooking(accountId, memberId, b) { const rec = { id: crypto.randomBytes(6).toString('hex'), accountId, memberId, status: 'confirmed', createdAt: new Date().toISOString(), ...b }; await (await c('bookings')).insertOne(rec); return rec; },
   async listBookingsByMember(memberId) { return (await c('bookings')).find({ memberId }).toArray(); },
+  async listBookingsByAccount(accountId) { return (await c('bookings')).find({ accountId }, { projection: { _id: 0 } }).toArray(); },
+  async listAllBookings() { return (await c('bookings')).find({}, { projection: { _id: 0 } }).toArray(); },
   async listBookingsBetween(fromIso, toIso) { return (await c('bookings')).find({ status: { $ne: 'cancelled' }, start: { $gte: fromIso, $lte: toIso } }, { projection: { _id: 0 } }).toArray(); },
   async getBookingPublic(bid) { return (await c('bookings')).findOne({ id: bid }); },
   async getBookingById(bid) { return (await c('bookings')).findOne({ id: bid }); },

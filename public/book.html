@@ -127,6 +127,11 @@ function bp(key,def){ const v=(cfg.bookingPage||{})[key]; return (v&&v.trim())?v
 function setLabel(sel,key,def){ const el=document.querySelector(sel); if(el) el.textContent=bp(key,def); }
 function initials(n){ return (n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
 function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':s);return d.innerHTML;}
+// Show every time in the visitor's own timezone; coaches' availability is computed
+// in their timezone server-side, so the instants are correct — we just localise them.
+const VTZ=(function(){try{return Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';}catch(e){return 'UTC';}})();
+function fmtTime(iso){ return new Date(iso).toLocaleTimeString([],{hour:'numeric',minute:'2-digit',hour12:true,timeZone:VTZ}); }
+function fmtDay(iso){ return new Date(iso).toLocaleDateString([],{weekday:'long',day:'numeric',month:'long',timeZone:VTZ}); }
 // An avatar that shows a coach photo when set, otherwise their initials.
 function avatar(name,img){ return img? `<div class="av" style="background-image:url('${esc(img)}');background-size:cover;background-position:center"></div>` : `<div class="av">${initials(name)}</div>`; }
 
@@ -196,7 +201,7 @@ async function loadServiceSlots(date){
     const r=await fetch(`/api/biz/${ORG}/services/${SERVICE}/slots?date=${date}`); const data=await r.json(); if(!r.ok) throw new Error(data.error);
     document.getElementById('title').textContent=SERVICEDATA.service.name;
     document.getElementById('dur').innerHTML=`<span class="dot"></span> ${data.service.durationMins} min`;
-    document.getElementById('tz').textContent='· '+data.timezone;
+    document.getElementById('tz').textContent='· times shown in '+VTZ;
     const isGroup=SERVICEDATA.service.isGroup;
     if(!data.slots.length){
       slotsEl.style.display='none';
@@ -205,7 +210,7 @@ async function loadServiceSlots(date){
       if(SERVICEDATA.service.waitlistEnabled) renderWaitlist(date, pe);
       return;
     }
-    slotsEl.innerHTML=''; data.slots.forEach(s=>{ const b=document.createElement('button'); b.className='slot'; const sub=isGroup?`${s.seats} spot${s.seats===1?'':'s'} left`:`${s.coaches.length} available`; b.innerHTML=`${esc(s.label)}<span style="display:block;font-size:11px;opacity:.6">${sub}</span>`; b.onclick=()=>chooseServiceSlot(s); slotsEl.appendChild(b); });
+    slotsEl.innerHTML=''; data.slots.forEach(s=>{ const b=document.createElement('button'); b.className='slot'; const sub=isGroup?`${s.seats} spot${s.seats===1?'':'s'} left`:`${s.coaches.length} available`; b.innerHTML=`${esc(fmtTime(s.start))}<span style="display:block;font-size:11px;opacity:.6">${sub}</span>`; b.onclick=()=>chooseServiceSlot(s); slotsEl.appendChild(b); });
   }catch(e){ slotsEl.innerHTML=`<div class="empty">${e.message||'Could not load times.'}</div>`; }
 }
 function renderWaitlist(date,container){
@@ -245,7 +250,7 @@ function chooseServiceSlot(slot){
     const back=document.createElement('button'); back.className='back'; back.textContent='← Back to times';
     back.onclick=()=>{ document.getElementById('slots').style.display=''; pe.innerHTML=''; };
     pe.appendChild(back);
-    const head=document.createElement('div'); head.className='label'; head.style.marginTop='6px'; head.textContent=slot.label+' — choose who with:';
+    const head=document.createElement('div'); head.className='label'; head.style.marginTop='6px'; head.textContent=fmtTime(slot.start)+' — choose who with:';
     pe.appendChild(head);
     slot.coaches.forEach(c=>{ const d=document.createElement('div'); d.className='pickrow'; d.innerHTML=`${avatar(c.name,c.imageUrl)}<div><h3>${esc(c.name)}</h3><p>${esc(c.title||'Available')}</p></div>`; d.onclick=()=>{ chosenCoach=c; goServiceDetails(slot,c); }; pe.appendChild(d); });
     return;
@@ -256,7 +261,7 @@ function chooseServiceSlot(slot){
 function goServiceDetails(slot,coach){
   const d=new Date(slot.start);
   const who = coach? ('with '+esc(coach.name)) : 'with the next available person';
-  document.getElementById('chosen').innerHTML=`<b>${esc(slot.label)}</b> · ${d.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'})} · ${who}`;
+  document.getElementById('chosen').innerHTML=`<b>${esc(fmtTime(slot.start))}</b> · ${esc(fmtDay(slot.start))} · ${who} <span style="color:var(--muted)">(${esc(VTZ)})</span>`;
   renderIntakeFields();
   show('details');
 }
@@ -318,15 +323,15 @@ async function loadSlots(date){
     const r=await fetch(`/api/biz/${ORG}/m/${MEMBER}/slots/${EVSLUG}?date=${date}`); const data=await r.json(); if(!r.ok) throw new Error(data.error);
     document.getElementById('title').textContent=data.event.title;
     document.getElementById('dur').innerHTML=`<span class="dot"></span> ${data.event.durationMins} min with ${data.member?.name||MEMBERNAME}`;
-    document.getElementById('tz').textContent='· '+data.timezone;
+    document.getElementById('tz').textContent='· times shown in '+VTZ;
     if(!data.slots.length){ slotsEl.innerHTML='<div class="empty">No times available this day. Try another.</div>'; return; }
-    slotsEl.innerHTML=''; data.slots.forEach(s=>{ const b=document.createElement('button'); b.className='slot'; b.textContent=s.label; b.onclick=()=>chooseSlot(s); slotsEl.appendChild(b); });
+    slotsEl.innerHTML=''; data.slots.forEach(s=>{ const b=document.createElement('button'); b.className='slot'; b.textContent=fmtTime(s.start); b.onclick=()=>chooseSlot(s); slotsEl.appendChild(b); });
   }catch(e){ slotsEl.innerHTML=`<div class="empty">${e.message||'Could not load times.'}</div>`; }
 }
 function chooseSlot(slot){
   chosenSlot=slot; chosenCoach=null; const d=new Date(slot.start);
   document.getElementById('intake-fields').innerHTML='';
-  document.getElementById('chosen').innerHTML=`<b>${slot.label}</b> · ${d.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long'})} · with ${esc(MEMBERNAME)}`;
+  document.getElementById('chosen').innerHTML=`<b>${esc(fmtTime(slot.start))}</b> · ${esc(fmtDay(slot.start))} · with ${esc(MEMBERNAME)} <span style="color:var(--muted)">(${esc(VTZ)})</span>`;
   show('details');
 }
 document.getElementById('back').onclick=()=>show('pick');

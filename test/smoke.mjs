@@ -191,6 +191,23 @@ async function run() {
   ok(team.style === 'flashcard' && team.members[0].name === 'Ada', 'public team reflects the editor');
   ok((await api('/api/console/broadcast', { method: 'POST', token: CO, body: { subject: 'x', html: '<p>x</p>' } })).status === 403, 'broadcast is super-admin only');
 
+  // ---- reports + timezone + demo + ask-to-reschedule ----
+  const rep = await api('/api/org/report', { token: ADMIN });
+  ok(rep.status === 200 && rep.data.summary && Array.isArray(rep.data.bookings), 'org bookings report returns summary + rows');
+  ok(rep.data.summary.cancelled >= 1, 'report counts cancelled bookings');
+  ok(rep.data.bookings.some(b => b.cancelledBy), 'report shows who cancelled');
+  ok((await api('/api/org/report', { token: MEM })).status === 403, 'plain member cannot see the report');
+  ok((await api('/api/console/report', { token: SAT })).status === 200, 'super admin report across all orgs');
+  // member timezone (valid saved, invalid cleared)
+  await api('/api/me/profile', { method: 'PUT', token: ADMIN, body: { timezone: 'Europe/London' } });
+  ok((await api('/api/me', { token: ADMIN })).data.member.timezone === 'Europe/London', 'member timezone saved');
+  await api('/api/me/profile', { method: 'PUT', token: ADMIN, body: { timezone: 'Not/AZone' } });
+  ok((await api('/api/me', { token: ADMIN })).data.member.timezone === '', 'invalid timezone rejected');
+  // demo request + ask-to-reschedule
+  ok((await api('/api/demo-request', { method: 'POST', body: { name: 'Test', email: 't@example.org', org: 'Test Org' } })).status === 200, 'demo request accepted');
+  ok((await api('/api/demo-request', { method: 'POST', body: { name: 'No Email' } })).status === 400, 'demo request needs an email');
+  ok((await api('/api/org/bookings/' + bid + '/request-reschedule', { method: 'POST', token: ADMIN, body: {} })).status === 200, 'member can ask the booker to reschedule');
+
   // ---- v2: multi-coach services ----
   const adaId = (await api('/api/me', { token: ADMIN })).data.member.id;
   await api('/api/me/profile', { method: 'PUT', token: ADMIN, body: { title: 'Lead Coach', bio: 'Ten years experience.', imageUrl: 'https://example.org/ada.jpg' } });

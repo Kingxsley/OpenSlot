@@ -90,6 +90,7 @@
     <button class="tab" data-t="design" data-roles="superadmin,content">Design</button>
     <button class="tab" data-t="admins" data-roles="superadmin">Admins</button>
     <button class="tab" data-t="limits" data-roles="superadmin">Organisations</button>
+    <button class="tab" data-t="reports" data-roles="superadmin">Reports</button>
     <button class="tab" data-t="emails" data-roles="superadmin">Emails</button>
     <button class="tab" data-t="security" data-roles="superadmin">Security</button>
   </div>
@@ -99,6 +100,7 @@
   <div id="design" class="hide"></div>
   <div id="admins" class="hide"></div>
   <div id="limits" class="hide"></div>
+  <div id="reports" class="hide"></div>
   <div id="emails" class="hide"></div>
   <div id="security" class="hide"></div>
 </div>
@@ -169,9 +171,9 @@ function showApp(){document.getElementById('loginView').classList.add('hide');do
 }
 function openTab(t){
   document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')});t.classList.add('on');
-  ['apps','members','logs','design','admins','limits','emails','security'].forEach(function(id){document.getElementById(id).classList.add('hide');});
+  ['apps','members','logs','design','admins','limits','reports','emails','security'].forEach(function(id){document.getElementById(id).classList.add('hide');});
   var sel=t.dataset.t;document.getElementById(sel).classList.remove('hide');
-  ({apps:loadApps,members:loadMembers,logs:loadLogs,design:loadDesign,admins:loadAdmins,limits:loadLimits,emails:loadEmails,security:loadSecurity}[sel]||function(){})();
+  ({apps:loadApps,members:loadMembers,logs:loadLogs,design:loadDesign,admins:loadAdmins,limits:loadLimits,reports:loadReports,emails:loadEmails,security:loadSecurity}[sel]||function(){})();
 }
 
 document.getElementById('lbtn').onclick=function(){
@@ -488,6 +490,36 @@ window.memAccess=function(mid,action,oid){ fetch('/api/console/member/'+mid+'/'+
 window.memUnlock2=function(mid,oid){ fetch('/api/console/member/'+mid+'/unlock',{method:'POST',headers:H()}).then(function(){ reopenMembers(oid); }); };
 window.memReset2=function(mid,oid){ appConfirm({title:'Force password reset',message:'Require this member to reset their password? They will be emailed a reset link.',confirmText:'Force reset'}).then(function(ok){ if(!ok)return; fetch('/api/console/member/'+mid+'/force-reset',{method:'POST',headers:H()}).then(function(){ reopenMembers(oid); }); }); };
 window.saveLimits=function(){ fetch('/api/console/limits',{method:'PUT',headers:H(),body:JSON.stringify({globalMax:document.getElementById('gmax').value,orgDefault:document.getElementById('odef').value})}).then(loadLimits); };
+
+// ================= REPORTS (all bookings) =================
+var reportData=null, reportState={filter:'',q:''};
+function loadReports(){ fetch('/api/console/report',{headers:H()}).then(function(r){return r.json();}).then(function(d){ reportData=d; renderReports(); }).catch(function(){showLogin();}); }
+function reportFmt(iso){ return new Date(iso).toLocaleString([],{day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'}); }
+function renderReports(){
+  if(!reportData) return; var s=reportData.summary, now=Date.now();
+  var cards=[['Total',s.total],['Upcoming',s.upcoming],['Completed',s.completed],['Cancelled',s.cancelled],['Rescheduled',s.rescheduled]].map(function(x){return '<div class="card" style="flex:1;min-width:100px;text-align:center;margin:0"><div style="font:700 22px Space Grotesk">'+x[1]+'</div><div class="meta">'+x[0]+'</div></div>';}).join('');
+  var toolbar='<div class="toolbar"><select id="rep-filter"><option value="">All</option><option value="upcoming">Upcoming</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="rescheduled">Rescheduled</option></select><input type="search" id="rep-q" placeholder="Search org, name, email, service…" value="'+attr(reportState.q)+'"><button class="ghost" id="rep-export">Export CSV</button></div>';
+  var rows=reportData.bookings.filter(function(b){ var future=new Date(b.start).getTime()>now;
+    if(reportState.filter==='cancelled'&&b.status!=='cancelled')return false;
+    if(reportState.filter==='upcoming'&&!(b.status!=='cancelled'&&future))return false;
+    if(reportState.filter==='completed'&&!(b.status!=='cancelled'&&!future))return false;
+    if(reportState.filter==='rescheduled'&&!(b.rescheduleCount>0))return false;
+    return textIncludes(b,['org','service','member','bookerName','bookerEmail'],reportState.q);
+  });
+  var body=rows.slice(0,500).map(function(b){ var future=new Date(b.start).getTime()>now;
+    var status=b.status==='cancelled'?'<span style="color:#E06A62">Cancelled</span>':(future?'Upcoming':'Completed');
+    var notes=b.cancelledBy?('Cancelled by '+esc(b.cancelledBy)):(b.rescheduleCount>0?('Resched. '+b.rescheduleCount+'× by '+esc(b.rescheduledBy||'?')):'');
+    return '<tr><td class="mono">'+esc(reportFmt(b.start))+'</td><td>'+esc(b.org)+'</td><td>'+esc(b.service)+'</td><td>'+esc(b.member)+'</td><td>'+esc(b.bookerName)+'<div class="meta">'+esc(b.bookerEmail)+'</div></td><td>'+status+'</td><td class="meta">'+notes+'</td></tr>';
+  }).join('');
+  document.getElementById('reports').innerHTML='<div class="card"><h3 style="margin:0 0 10px;font:600 16px Space Grotesk">Bookings &amp; sessions</h3><div class="row" style="gap:10px;margin-bottom:12px">'+cards+'</div>'+toolbar+'<div style="overflow-x:auto"><table><thead><tr><th>When</th><th>Organisation</th><th>Service</th><th>With</th><th>Booked by</th><th>Status</th><th>Notes</th></tr></thead><tbody>'+(body||'<tr><td colspan="7">No bookings.</td></tr>')+'</tbody></table></div><div class="meta" style="margin-top:6px">'+rows.length+' bookings</div></div>';
+  document.getElementById('rep-filter').value=reportState.filter;
+  document.getElementById('rep-filter').onchange=function(){reportState.filter=this.value;renderReports();};
+  document.getElementById('rep-q').oninput=function(){reportState.q=this.value;renderReports();var i=document.getElementById('rep-q');i.focus();i.setSelectionRange(i.value.length,i.value.length);};
+  document.getElementById('rep-export').onclick=function(){
+    downloadCSV('enjeeoh-bookings-'+new Date().toISOString().slice(0,10)+'.csv',['when','org','service','with','booker','email','status','cancelled_by','rescheduled_by','reschedule_count','created'],
+      rows.map(function(b){return [reportFmt(b.start),b.org,b.service,b.member,b.bookerName,b.bookerEmail,b.status,b.cancelledBy,b.rescheduledBy,b.rescheduleCount,b.createdAt];}));
+  };
+}
 
 // ================= EMAIL TEMPLATES (visual editor only) =================
 // The body is edited in a WYSIWYG contenteditable surface — there is no raw-HTML

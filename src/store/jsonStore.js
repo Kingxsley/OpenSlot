@@ -123,6 +123,8 @@ export const jsonStore = {
     data().bookings.push(rec); flush(); return rec;
   },
   async listBookingsByMember(memberId) { return data().bookings.filter(b => b.memberId === memberId); },
+  async listBookingsByAccount(accountId) { return data().bookings.filter(b => b.accountId === accountId); },
+  async listAllBookings() { return [...(data().bookings || [])]; },
   async listBookingsBetween(fromIso, toIso) { return (data().bookings || []).filter(b => b.status !== 'cancelled' && b.start >= fromIso && b.start <= toIso); },
   async getBookingPublic(bid) { return data().bookings.find(b => b.id === bid) || null; },
   async getBookingById(bid) { return data().bookings.find(b => b.id === bid) || null; },

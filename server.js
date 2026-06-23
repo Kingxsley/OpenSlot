@@ -121,6 +121,18 @@ const EMAIL_TEMPLATES = {
     vars: [],
     subject: "We've updated our policies",
     html: '<p>Hello,</p><p>We have updated our legal documents (for example our <a href="https://enjeeoh.com/privacy">Privacy Policy</a> and <a href="https://enjeeoh.com/terms">Terms</a>).</p><p>Please take a moment to review the changes. By continuing to use Enjeeoh you agree to the updated terms.</p><p>Thank you,<br>The Enjeeoh team</p>'
+  },
+  demoRequestAck: {
+    label: 'Demo request — confirmation to the requester',
+    vars: ['name'],
+    subject: 'Thanks for your interest in Enjeeoh',
+    html: '<p>Hi {{name}},</p><p>Thank you for requesting a demo of Enjeeoh. We have received your request and a member of our team will be in touch shortly to arrange a time that suits you.</p><p>In the meantime, feel free to explore the platform.</p><p>Warm regards,<br>The Enjeeoh team</p>'
+  },
+  demoRequestNotify: {
+    label: 'Demo request — notification to the team',
+    vars: ['name', 'email', 'org', 'message'],
+    subject: 'New demo request: {{org}}',
+    html: '<p>A new demo has been requested.</p><ul><li><b>Name:</b> {{name}}</li><li><b>Email:</b> {{email}}</li><li><b>Organisation:</b> {{org}}</li><li><b>Message:</b> {{message}}</li></ul>'
   }
 };
 function fillTemplate(str, vars) { return String(str || '').replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => (vars[k] == null ? '' : String(vars[k]))); }
@@ -286,6 +298,12 @@ function cleanImageUrl(u) {
   if (!u) return '';
   if (/^https?:\/\//i.test(u) || /^data:image\/(png|jpe?g|gif|webp|svg\+xml);/i.test(u)) return u;
   return '';
+}
+// Validate an IANA timezone (e.g. "Australia/Melbourne"); empty = use the org's.
+function cleanTimezone(tz) {
+  tz = String(tz || '').trim().slice(0, 64);
+  if (!tz) return '';
+  try { new Intl.DateTimeFormat('en', { timeZone: tz }); return tz; } catch { return ''; }
 }
 function locationText(ev, jitsiUrl) {
   switch (ev.location) { case 'jitsi': return jitsiUrl; case 'phone': return 'Phone call';
@@ -506,7 +524,7 @@ app.get('/api/me', requireMember, async (req, res) => {
   const m = req.member, a = req.account;
   const [eventTypes, bookings] = await Promise.all([store.listEventTypesByMember(m.id), store.listBookingsByMember(m.id)]);
   const out = {
-    member: { id: m.id, name: m.name, email: m.email, slug: m.slug, role: m.role, availability: m.availability, blockedDates: m.blockedDates || [], mfaEnabled: !!m.mfaEnabled, bio: m.bio || '', title: m.title || '', imageUrl: m.imageUrl || '' },
+    member: { id: m.id, name: m.name, email: m.email, slug: m.slug, role: m.role, availability: m.availability, blockedDates: m.blockedDates || [], mfaEnabled: !!m.mfaEnabled, bio: m.bio || '', title: m.title || '', imageUrl: m.imageUrl || '', timezone: m.timezone || '' },
     account: { slug: a.slug, name: a.name, status: a.status, reviewNote: a.reviewNote, brandColor: a.brandColor, timezone: a.timezone, memberSelfManage: a.memberSelfManage, website: a.website, bookingPage: a.bookingPage || {} },
     canManageOwnEvents: canManageOwnEvents(m, a),
     eventTypes,
@@ -536,6 +554,7 @@ app.put('/api/me/profile', requireMember, async (req, res) => {
   if (typeof req.body.bio === 'string') patch.bio = req.body.bio.slice(0, 1000);
   if (typeof req.body.title === 'string') patch.title = req.body.title.slice(0, 120);
   if (typeof req.body.imageUrl === 'string') patch.imageUrl = cleanImageUrl(req.body.imageUrl);
+  if (typeof req.body.timezone === 'string') patch.timezone = cleanTimezone(req.body.timezone);
   await store.updateMember(req.member.id, patch); res.json({ ok: true });
 });
 
@@ -558,7 +577,10 @@ app.delete('/api/me/event-types/:id', requireMember, async (req, res) => {
 app.delete('/api/me/bookings/:id', requireMember, async (req, res) => {
   const b = await store.getBookingById(req.params.id);
   await store.cancelBooking(req.member.id, req.params.id);
-  if (b && b.memberId === req.member.id) { notifyBookingChange(req, b, 'cancelled'); notifyWaitlistOpening(req, b); }
+  if (b && b.memberId === req.member.id) {
+    await store.updateBooking(b.id, { cancelledBy: req.member.email, cancelledByRole: req.member.role, cancelledAt: new Date().toISOString() });
+    notifyBookingChange(req, b, 'cancelled'); notifyWaitlistOpening(req, b);
+  }
   res.json({ ok: true });
 });
 
@@ -584,7 +606,7 @@ async function notifyBookingChange(req, booking, kind, opts = {}) {
 app.post('/api/org/bookings/:id/cancel', requireMember, requireOrgManager, async (req, res) => {
   const b = await store.getBookingById(req.params.id);
   if (!b || b.accountId !== req.account.id) return res.status(404).json({ error: 'Booking not found.' });
-  await store.updateBooking(b.id, { status: 'cancelled' });
+  await store.updateBooking(b.id, { status: 'cancelled', cancelledBy: req.member.email, cancelledByRole: req.member.role, cancelledAt: new Date().toISOString(), cancelNote: req.body?.note || '' });
   await notifyBookingChange(req, b, 'cancelled', { note: req.body?.note });
   notifyWaitlistOpening(req, b);
   await audit(req, 'booking.cancelled', { accountId: req.account.id, accountName: req.account.name, actor: req.member.email, actorRole: req.member.role, text: `${b.title} for ${b.email}` });
@@ -601,10 +623,54 @@ app.post('/api/org/bookings/:id/reschedule', requireMember, requireOrgManager, a
   const durationMs = new Date(b.end) - new Date(b.start);
   const endDate = new Date(startDate.getTime() + durationMs);
   if (await store.findClash(b.memberId, b.eventTypeId, startDate.getTime(), endDate.getTime())) return res.status(409).json({ error: 'That time is already taken.' });
-  const updated = await store.updateBooking(b.id, { start: startDate.toISOString(), end: endDate.toISOString(), status: 'confirmed' });
+  const updated = await store.updateBooking(b.id, { start: startDate.toISOString(), end: endDate.toISOString(), status: 'confirmed', rescheduledBy: req.member.email, rescheduledByRole: req.member.role, rescheduledAt: new Date().toISOString(), rescheduleCount: (b.rescheduleCount || 0) + 1 });
   await notifyBookingChange(req, updated, 'rescheduled');
   await audit(req, 'booking.rescheduled', { accountId: req.account.id, accountName: req.account.name, actor: req.member.email, actorRole: req.member.role, text: `${b.title} for ${b.email}` });
   res.json({ ok: true, start: startDate.toISOString(), end: endDate.toISOString() });
+});
+
+// Ask the person who booked to pick a new time themselves (emails them the manage link).
+app.post('/api/org/bookings/:id/request-reschedule', requireMember, requireOrgManager, async (req, res) => {
+  const b = await store.getBookingById(req.params.id);
+  if (!b || b.accountId !== req.account.id) return res.status(404).json({ error: 'Booking not found.' });
+  if (!b.manageToken) return res.status(400).json({ error: 'This booking has no self-manage link.' });
+  const link = `${baseUrl(req)}/manage/${b.id}/${b.manageToken}`;
+  const note = String(req.body?.note || '').slice(0, 500);
+  if (emailEnabled() && b.email) sendEmail({ to: b.email, subject: `Please pick a new time for your ${b.title}`, html: `<p>Hi ${b.name || 'there'},</p><p>${req.member.name} at ${req.account.name} has asked if you could choose a new time for your <b>${b.title}</b>.</p>${note ? `<p>${note}</p>` : ''}<p><a href="${link}">Reschedule or cancel your booking</a>.</p>` });
+  await audit(req, 'booking.reschedule-requested', { accountId: req.account.id, accountName: req.account.name, actor: req.member.email, actorRole: req.member.role, text: `${b.title} for ${b.email}` });
+  res.json({ ok: true, emailed: emailEnabled() });
+});
+
+// ================= BOOKINGS REPORT =================
+// A row per booking with status and who acted (cancelled/rescheduled).
+function reportRow(b) {
+  return {
+    id: b.id, service: b.serviceName || b.title || '', member: b.memberName || '', bookerName: b.name || '', bookerEmail: b.email || '',
+    start: b.start, end: b.end, status: b.status, createdAt: b.createdAt || '',
+    cancelledBy: b.cancelledBy || '', cancelledByRole: b.cancelledByRole || '', cancelledAt: b.cancelledAt || '', cancelNote: b.cancelNote || '',
+    rescheduledBy: b.rescheduledBy || '', rescheduledByRole: b.rescheduledByRole || '', rescheduledAt: b.rescheduledAt || '', rescheduleCount: b.rescheduleCount || 0
+  };
+}
+function reportSummary(rows) {
+  const now = Date.now();
+  const future = b => new Date(b.start).getTime() > now;
+  return {
+    total: rows.length,
+    upcoming: rows.filter(b => b.status !== 'cancelled' && future(b)).length,
+    completed: rows.filter(b => b.status !== 'cancelled' && !future(b)).length,
+    cancelled: rows.filter(b => b.status === 'cancelled').length,
+    rescheduled: rows.filter(b => (b.rescheduleCount || 0) > 0).length
+  };
+}
+app.get('/api/org/report', requireMember, requireOrgManager, async (req, res) => {
+  const rows = (await store.listBookingsByAccount(req.account.id)).map(reportRow).sort((a, b) => new Date(b.start) - new Date(a.start));
+  res.json({ summary: reportSummary(rows), bookings: rows, timezone: req.account.timezone });
+});
+app.get('/api/console/report', requireSuperAdmin, async (_req, res) => {
+  const [bookings, accounts] = await Promise.all([store.listAllBookings(), store.listAllAccounts()]);
+  const byId = Object.fromEntries(accounts.map(a => [a.id, a.name]));
+  const rows = bookings.map(b => ({ ...reportRow(b), org: byId[b.accountId] || '(unknown)' })).sort((a, b) => new Date(b.start) - new Date(a.start));
+  res.json({ summary: reportSummary(rows), bookings: rows });
 });
 
 // ================= ORG ADMIN =================
@@ -749,6 +815,7 @@ app.put('/api/org/members/:id/profile', requireMember, requireOrgManager, async 
   if (typeof req.body.bio === 'string') patch.bio = req.body.bio.slice(0, 1000);
   if (typeof req.body.title === 'string') patch.title = req.body.title.slice(0, 120);
   if (typeof req.body.imageUrl === 'string') patch.imageUrl = cleanImageUrl(req.body.imageUrl);
+  if (typeof req.body.timezone === 'string') patch.timezone = cleanTimezone(req.body.timezone);
   await store.updateMember(target.id, patch);
   res.json({ ok: true });
 });
@@ -829,8 +896,9 @@ app.get('/api/biz/:slug/m/:mslug/slots/:evslug', async (req, res) => {
   const bookings = await store.listBookingsByMember(m.id);
   const bookedRanges = bookings.filter(b => b.eventTypeId === ev.id && b.status !== 'cancelled');
   const blocked = Array.isArray(m.blockedDates) && m.blockedDates.includes(req.query.date);
-  const slots = blocked ? [] : slotsForDate({ dateStr: req.query.date, durationMins: ev.durationMins, timeZone: a.timezone, availability: m.availability, bookedRanges }).map(s => ({ ...s, label: labelTime(s.start, a.timezone) }));
-  res.json({ event: { title: ev.title, durationMins: ev.durationMins }, member: { name: m.name }, timezone: a.timezone, slots });
+  const tz = m.timezone || a.timezone;
+  const slots = blocked ? [] : slotsForDate({ dateStr: req.query.date, durationMins: ev.durationMins, timeZone: tz, availability: m.availability, bookedRanges }).map(s => ({ ...s, label: labelTime(s.start, tz) }));
+  res.json({ event: { title: ev.title, durationMins: ev.durationMins }, member: { name: m.name }, timezone: tz, slots });
 });
 
 app.post('/api/biz/:slug/m/:mslug/bookings', async (req, res) => {
@@ -936,7 +1004,7 @@ app.get('/api/biz/:slug/services/:svcSlug/slots', async (req, res) => {
     const all = (await store.listBookingsByMember(m.id)).filter(b => b.status !== 'cancelled');
     // For group services a coach's own group bookings should not hide the slot.
     const bookedRanges = group ? all.filter(b => b.serviceId !== s.id) : all;
-    const slots = slotsForDate({ dateStr: req.query.date, durationMins: s.durationMins, timeZone: a.timezone, availability: m.availability, bookedRanges });
+    const slots = slotsForDate({ dateStr: req.query.date, durationMins: s.durationMins, timeZone: m.timezone || a.timezone, availability: m.availability, bookedRanges });
     for (const slot of slots) {
       const endMs = new Date(slot.start).getTime() + s.durationMins * 60000;
       const seats = seatsLeft(s, all, slot.start, endMs);
@@ -1021,7 +1089,7 @@ app.get('/api/manage/:id/:token', async (req, res) => {
 app.post('/api/manage/:id/:token/cancel', async (req, res) => {
   const b = await loadManaged(req, res); if (!b) return;
   if (b.status === 'cancelled') return res.json({ ok: true });
-  await store.updateBooking(b.id, { status: 'cancelled' });
+  await store.updateBooking(b.id, { status: 'cancelled', cancelledBy: 'the person who booked', cancelledByRole: 'booker', cancelledAt: new Date().toISOString() });
   notifyBookingChange(req, b, 'cancelled');
   notifyWaitlistOpening(req, b);
   res.json({ ok: true });
@@ -1034,7 +1102,7 @@ app.post('/api/manage/:id/:token/reschedule', async (req, res) => {
   const endDate = new Date(startDate.getTime() + durationMs);
   const others = (await store.listBookingsByMember(b.memberId)).filter(x => x.id !== b.id);
   if (bookingOverlaps(others, startDate.getTime(), endDate.getTime())) return res.status(409).json({ error: 'That time is no longer free. Please pick another.' });
-  const updated = await store.updateBooking(b.id, { start: startDate.toISOString(), end: endDate.toISOString(), status: 'confirmed' });
+  const updated = await store.updateBooking(b.id, { start: startDate.toISOString(), end: endDate.toISOString(), status: 'confirmed', rescheduledBy: 'the person who booked', rescheduledByRole: 'booker', rescheduledAt: new Date().toISOString(), rescheduleCount: (b.rescheduleCount || 0) + 1 });
   notifyBookingChange(req, updated, 'rescheduled');
   res.json({ ok: true, start: startDate.toISOString() });
 });
@@ -1522,6 +1590,20 @@ app.post('/api/console/broadcast', requireSuperAdmin, async (req, res) => {
   res.json({ ok: true, sent, failed, total: recipients.length, test });
 });
 
+// Public: request a demo. Notifies the team and sends a professional acknowledgement.
+app.post('/api/demo-request', signupLimiter, async (req, res) => {
+  const name = String(req.body?.name || '').slice(0, 120).trim();
+  const email = String(req.body?.email || '').slice(0, 200).trim();
+  const org = String(req.body?.org || '').slice(0, 160).trim();
+  const message = String(req.body?.message || '').slice(0, 2000).trim();
+  if (!name || !email.includes('@')) return res.status(400).json({ error: 'Please give your name and a valid email.' });
+  const teamTo = process.env.REVIEW_NOTIFY_EMAIL || SUPERADMIN_EMAIL;
+  if (teamTo) sendTemplate('demoRequestNotify', teamTo, { name, email, org: org || '(not given)', message: message || '(none)' });
+  sendTemplate('demoRequestAck', email, { name });
+  await audit(req, 'demo.requested', { actor: email, text: org || name });
+  res.json({ ok: true, emailed: emailEnabled() });
+});
+
 // ================= EMBED + PAGES =================
 app.get('/embed.js', (_req, res) => {
   res.setHeader('Content-Type', 'application/javascript');
@@ -1593,15 +1675,22 @@ async function runBookingReminders() {
   try {
     if (!emailEnabled() && !smsEnabled()) return;
     const now = Date.now();
-    const due = await store.listBookingsBetween(new Date(now + 23 * 3600 * 1000).toISOString(), new Date(now + 25 * 3600 * 1000).toISOString());
-    for (const b of due) {
-      if (b.reminderSent || !b.email) continue;
-      const a = await store.getAccountById(b.accountId);
-      const when = a ? new Intl.DateTimeFormat('en-AU', { timeZone: a.timezone, weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date(b.start)) : b.start;
-      const manageLink = b.manageToken ? `${PUBLIC_URL}/manage/${b.id}/${b.manageToken}` : '';
-      if (emailEnabled()) sendEmail({ to: b.email, subject: `Reminder: ${b.title} tomorrow`, html: `<p>Hi ${b.name || 'there'},</p><p>A reminder for your <b>${b.title}</b> with ${b.memberName} on <b>${when}</b>.</p><p>${b.locationText || ''}</p>${manageLink ? `<p>Need to change it? <a href="${manageLink}">Reschedule or cancel</a>.</p>` : ''}` });
-      if (smsEnabled() && b.phone) sendSms({ to: b.phone, body: `Reminder: ${b.title} on ${when}. ${b.locationText || ''}`.slice(0, 320) });
-      await store.updateBooking(b.id, { reminderSent: true });
+    // Two reminder windows: ~24h before and ~4h before, each tracked separately.
+    const windows = [
+      { from: 23, to: 25, flag: 'reminderSent', label: 'tomorrow' },
+      { from: 3.5, to: 4.5, flag: 'reminder4Sent', label: 'in about 4 hours' }
+    ];
+    for (const w of windows) {
+      const due = await store.listBookingsBetween(new Date(now + w.from * 3600 * 1000).toISOString(), new Date(now + w.to * 3600 * 1000).toISOString());
+      for (const b of due) {
+        if (b[w.flag] || !b.email) continue;
+        const a = await store.getAccountById(b.accountId);
+        const when = a ? new Intl.DateTimeFormat('en-AU', { timeZone: a.timezone, weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date(b.start)) : b.start;
+        const manageLink = b.manageToken ? `${PUBLIC_URL}/manage/${b.id}/${b.manageToken}` : '';
+        if (emailEnabled()) sendEmail({ to: b.email, subject: `Reminder: ${b.title} ${w.label}`, html: `<p>Hi ${b.name || 'there'},</p><p>A reminder for your <b>${b.title}</b> with ${b.memberName} ${w.label} — <b>${when}</b>.</p><p>${b.locationText || ''}</p>${manageLink ? `<p>Need to change it? <a href="${manageLink}">Reschedule or cancel</a>.</p>` : ''}` });
+        if (smsEnabled() && b.phone) sendSms({ to: b.phone, body: `Reminder: ${b.title} ${w.label} (${when}). ${b.locationText || ''}`.slice(0, 320) });
+        await store.updateBooking(b.id, { [w.flag]: true });
+      }
     }
   } catch (e) { console.error('Booking reminder sweep failed:', e.message); }
 }

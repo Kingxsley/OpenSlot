@@ -40,6 +40,8 @@
   .tag{font-size:11px;background:var(--soft);padding:2px 8px;border-radius:20px;color:var(--muted)}
   .hidden{display:none} a{color:var(--accent)}
   .invite-link{background:var(--soft);border-radius:8px;padding:10px 12px;font:12px ui-monospace,monospace;word-break:break-all;margin-top:8px}
+  #report-table th,#report-table td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+  #report-table th{font:600 11px Inter;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
   @media (max-width:600px){
     .wrap{padding:18px 14px 70px}
     .row>*{min-width:100%}
@@ -124,6 +126,8 @@
         <input id="p-image" placeholder="https://…">
         <label>Short bio</label>
         <textarea id="p-bio" rows="2" placeholder="A sentence about you for visitors." style="width:100%"></textarea>
+        <label>Your timezone <span class="sub" style="font-weight:400">— your availability is set in this zone; visitors see times in theirs</span></label>
+        <input id="p-tz" placeholder="e.g. Australia/Melbourne"> <button class="ghost sm" type="button" id="p-tz-detect">Use my current timezone</button>
         <div style="margin-top:10px;display:flex;align-items:center;gap:12px"><button id="p-save">Save profile</button> <span class="ok hidden" id="p-ok">Saved</span> <img id="p-preview" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;display:none"></div>
       </div>
       <div class="panel" id="securityPanel">
@@ -175,6 +179,18 @@
 
     <!-- ORGANISATION (admin) -->
     <div id="tab-org" class="hidden">
+      <div class="panel">
+        <h2>Bookings report</h2>
+        <p class="sub" style="margin-top:0">Every booking for your organisation — held, upcoming, cancelled or rescheduled, and who acted.</p>
+        <div id="report-summary" class="row" style="gap:10px"></div>
+        <div class="lim" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0">
+          <select id="report-filter"><option value="">All</option><option value="upcoming">Upcoming</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="rescheduled">Rescheduled</option></select>
+          <input id="report-q" type="search" placeholder="Search name, email, service…" style="flex:1;min-width:160px;margin:0">
+          <button class="ghost sm" id="report-export">Export CSV</button>
+          <button class="ghost sm" id="report-refresh">Refresh</button>
+        </div>
+        <div style="overflow-x:auto"><table id="report-table" style="width:100%;border-collapse:collapse;font-size:13px"></table></div>
+      </div>
       <div class="panel">
         <h2>Organisation settings</h2>
         <div class="row">
@@ -419,6 +435,8 @@ function render(){
   document.getElementById('p-title').value=m.title||'';
   document.getElementById('p-image').value=m.imageUrl||'';
   document.getElementById('p-bio').value=m.bio||'';
+  document.getElementById('p-tz').value=m.timezone||'';
+  document.getElementById('p-tz').placeholder=(STATE.account&&STATE.account.timezone)?('e.g. '+STATE.account.timezone+' (org default)'):'e.g. Australia/Melbourne';
   const pv=document.getElementById('p-preview'); if(m.imageUrl){ pv.src=m.imageUrl; pv.style.display='inline-block'; } else pv.style.display='none';
   document.getElementById('orgTab').style.display = m.role==='admin'?'inline-block':'none';
 
@@ -453,19 +471,63 @@ function render(){
   // bookings (own)
   const bk=document.getElementById('bookings'); const up=STATE.bookings.filter(b=>b.status!=='cancelled'&&new Date(b.start)>new Date());
   bk.innerHTML=up.length?'':'<p class="sub" style="margin:0">No upcoming bookings yet.</p>';
-  up.forEach(b=>{ const when=new Date(b.start).toLocaleString('en-AU',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit',timeZone:a.timezone}); const el=document.createElement('div'); el.className='item';
-    el.innerHTML=`<div><h3>${esc(b.title)}</h3><p>${esc(b.name)} · ${esc(b.email)}</p><p>${when}</p>
-      <div class="rs" data-rsbox="${b.id}" style="display:none;margin-top:8px"><input type="datetime-local" data-rsinput="${b.id}" style="padding:8px;border:1px solid var(--line);border-radius:8px"> <button class="ghost sm" data-rssave="${b.id}">Save new time</button></div></div>
-      <div style="display:flex;gap:8px"><button class="ghost sm" data-resched="${b.id}">Reschedule</button><button class="danger" data-cancel="${b.id}">Cancel</button></div>`; bk.appendChild(el); });
+  let lastDay='';
+  up.forEach(b=>{ const dt=new Date(b.start);
+    const day=dt.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'long',timeZone:a.timezone});
+    if(day!==lastDay){ lastDay=day; const h=document.createElement('div'); h.style.cssText='font:600 13px Inter;color:var(--muted);margin:14px 0 6px'; h.textContent=day; bk.appendChild(h); }
+    const when=dt.toLocaleString('en-AU',{hour:'numeric',minute:'2-digit',timeZone:a.timezone});
+    const soon=(dt.getTime()-Date.now())<4*3600*1000;
+    const el=document.createElement('div'); el.className='item';
+    el.innerHTML=`<div><h3>${esc(b.title)} ${soon?'<span class="tag" style="background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)">starting soon</span>':''}</h3><p>${esc(b.name)} · ${esc(b.email)}</p><p>${when}</p>
+      <div class="rs" data-rsbox="${b.id}" style="display:none;margin-top:8px"><input type="datetime-local" data-rsinput="${b.id}" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)"> <button class="ghost sm" data-rssave="${b.id}">Save new time</button></div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ghost sm" data-resched="${b.id}">Reschedule</button><button class="ghost sm" data-askresched="${b.id}">Ask to reschedule</button><button class="danger" data-cancel="${b.id}">Cancel</button></div>`; bk.appendChild(el); });
   bk.querySelectorAll('[data-cancel]').forEach(b=>b.onclick=async()=>{ if(await appConfirm({title:'Cancel booking',message:'Cancel this booking? The person who booked will be emailed.',confirmText:'Cancel booking',danger:true})){ try{ await api('/api/me/bookings/'+b.dataset.cancel,{method:'DELETE'}); boot(); }catch(e){ appToast(e.message,'err'); } } });
-  bk.querySelectorAll('[data-resched]').forEach(b=>b.onclick=()=>{ const box=bk.querySelector('[data-rsbox="'+b.dataset.resched+'"]'); box.style.display=box.style.display==='none'?'block':'none'; });
+  bk.querySelectorAll('[data-askresched]').forEach(b=>b.onclick=async()=>{ if(await appConfirm({title:'Ask to reschedule',message:'Email the person who booked a link so they can pick a new time themselves?',confirmText:'Send request'})){ try{ await api('/api/org/bookings/'+b.dataset.askresched+'/request-reschedule',{method:'POST',body:JSON.stringify({})}); appToast('Reschedule request sent.','ok'); }catch(e){ appToast(e.message,'err'); } } });
+  bk.querySelectorAll('[data-resched]').forEach(b=>b.onclick=()=>{ const box=bk.querySelector('[data-rsbox="'+b.dataset.resched+'"]'); const open=box.style.display==='none'; box.style.display=open?'block':'none'; if(open){ const inp=box.querySelector('[data-rsinput]'); inp.min=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16); } });
   bk.querySelectorAll('[data-rssave]').forEach(b=>b.onclick=async()=>{ const v=bk.querySelector('[data-rsinput="'+b.dataset.rssave+'"]').value; if(!v)return; try{ const r=await api('/api/org/bookings/'+b.dataset.rssave+'/reschedule',{method:'POST',body:JSON.stringify({start:new Date(v).toISOString()})}); if(r&&r.error){appToast(r.error,'err');return;} boot(); }catch(e){ appToast(e.message,'err'); } });
 
   if(m.role==='admin') renderOrg();
 }
 
+// ---- bookings report ----
+let reportData=null;
+async function loadReport(){ try{ reportData=await api('/api/org/report'); renderReport(); }catch(e){} }
+function reportFmt(iso,tz){ return new Date(iso).toLocaleString([],{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit',timeZone:tz||'UTC'}); }
+function renderReport(){
+  if(!reportData) return; const s=reportData.summary, tz=reportData.timezone, now=Date.now();
+  document.getElementById('report-summary').innerHTML=[['Total',s.total],['Upcoming',s.upcoming],['Completed',s.completed],['Cancelled',s.cancelled],['Rescheduled',s.rescheduled]].map(x=>`<div class="item" style="flex:1;min-width:88px;text-align:center;display:block"><div style="font:700 20px 'Space Grotesk'">${x[1]}</div><div class="sub" style="margin:0">${x[0]}</div></div>`).join('');
+  const filter=document.getElementById('report-filter').value, q=document.getElementById('report-q').value.toLowerCase();
+  const rows=reportData.bookings.filter(b=>{
+    const future=new Date(b.start).getTime()>now;
+    if(filter==='cancelled'&&b.status!=='cancelled')return false;
+    if(filter==='upcoming'&&!(b.status!=='cancelled'&&future))return false;
+    if(filter==='completed'&&!(b.status!=='cancelled'&&!future))return false;
+    if(filter==='rescheduled'&&!(b.rescheduleCount>0))return false;
+    return !q||[b.service,b.member,b.bookerName,b.bookerEmail].some(v=>(v||'').toLowerCase().includes(q));
+  });
+  const body=rows.map(b=>{
+    const future=new Date(b.start).getTime()>now;
+    const status=b.status==='cancelled'?'<span style="color:#C0392B">Cancelled</span>':(future?'Upcoming':'Completed');
+    let notes='';
+    if(b.cancelledBy) notes='Cancelled by '+esc(b.cancelledBy)+(b.cancelNote?' — '+esc(b.cancelNote):'');
+    else if(b.rescheduleCount>0) notes='Rescheduled '+b.rescheduleCount+'× (last by '+esc(b.rescheduledBy||'?')+')';
+    return `<tr><td>${esc(reportFmt(b.start,tz))}</td><td>${esc(b.service)}</td><td>${esc(b.member)}</td><td>${esc(b.bookerName)}<div class="sub" style="margin:0">${esc(b.bookerEmail)}</div></td><td>${status}</td><td class="sub">${notes}</td></tr>`;
+  }).join('');
+  document.getElementById('report-table').innerHTML='<thead><tr><th>When</th><th>Service</th><th>With</th><th>Booked by</th><th>Status</th><th>Notes</th></tr></thead><tbody>'+(body||'<tr><td colspan="6" class="sub">No bookings yet.</td></tr>')+'</tbody>';
+}
+document.getElementById('report-filter').onchange=renderReport;
+document.getElementById('report-q').oninput=renderReport;
+document.getElementById('report-refresh').onclick=loadReport;
+document.getElementById('report-export').onclick=()=>{
+  if(!reportData)return; const tz=reportData.timezone;
+  const q=function(c){return '"'+String(c==null?'':c).replace(/"/g,'""')+'"';};
+  const head=['when','service','with','booker_name','booker_email','status','cancelled_by','cancel_note','rescheduled_by','reschedule_count','created'];
+  const lines=[head.map(q).join(',')].concat(reportData.bookings.map(b=>[reportFmt(b.start,tz),b.service,b.member,b.bookerName,b.bookerEmail,b.status,b.cancelledBy,b.cancelNote,b.rescheduledBy,b.rescheduleCount,b.createdAt].map(q).join(',')));
+  const blob=new Blob([lines.join('\n')],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='enjeeoh-bookings-'+new Date().toISOString().slice(0,10)+'.csv'; document.body.appendChild(a); a.click(); a.remove();
+};
 function renderOrg(){
   const a=STATE.account;
+  loadReport();
   document.getElementById('o-name').value=a.name; document.getElementById('o-web').value=a.website||'';
   document.getElementById('o-color').value=a.brandColor; document.getElementById('o-tz').value=a.timezone;
   document.getElementById('o-domain').value=a.customDomain||'';
@@ -614,7 +676,8 @@ document.getElementById('svc-addq').onclick=()=>addIntakeRow();
 
 document.getElementById('pol-switch').onclick=async()=>{ try{ const d=await api('/api/org/settings',{method:'PUT',body:JSON.stringify({memberSelfManage:!STATE.account.memberSelfManage})}); STATE.account.memberSelfManage=d.account.memberSelfManage; boot(); }catch(e){ appToast(e.message,'err'); } };
 document.getElementById('o-save').onclick=async()=>{ await api('/api/org/settings',{method:'PUT',body:JSON.stringify({name:document.getElementById('o-name').value,website:document.getElementById('o-web').value,brandColor:document.getElementById('o-color').value,timezone:document.getElementById('o-tz').value,customDomain:document.getElementById('o-domain').value.trim()})}); flash('o-ok'); boot(); };
-document.getElementById('p-save').onclick=async()=>{ try{ await api('/api/me/profile',{method:'PUT',body:JSON.stringify({name:document.getElementById('p-name').value.trim(),title:document.getElementById('p-title').value.trim(),imageUrl:document.getElementById('p-image').value.trim(),bio:document.getElementById('p-bio').value.trim()})}); flash('p-ok'); boot(); }catch(e){ appToast(e.message,'err'); } };
+document.getElementById('p-save').onclick=async()=>{ try{ await api('/api/me/profile',{method:'PUT',body:JSON.stringify({name:document.getElementById('p-name').value.trim(),title:document.getElementById('p-title').value.trim(),imageUrl:document.getElementById('p-image').value.trim(),bio:document.getElementById('p-bio').value.trim(),timezone:document.getElementById('p-tz').value.trim()})}); flash('p-ok'); boot(); }catch(e){ appToast(e.message,'err'); } };
+document.getElementById('p-tz-detect').onclick=()=>{ try{ document.getElementById('p-tz').value=Intl.DateTimeFormat().resolvedOptions().timeZone||''; }catch(e){} };
 document.getElementById('bp-save').onclick=async()=>{ try{
   const bpg={}; ['welcome','headline','servicePrompt','teamPrompt','dayPrompt','timesLabel','confirmButton','thankYouHeading','thankYouNote'].forEach(k=>{ bpg[k]=document.getElementById('bp-'+k).value.trim(); });
   await api('/api/org/settings',{method:'PUT',body:JSON.stringify({bookingPage:bpg})}); flash('bp-ok'); boot();
