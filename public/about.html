@@ -35,6 +35,32 @@
   .member{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;text-align:center}
   .member .av{width:58px;height:58px;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font:700 20px 'Space Grotesk';color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2))}
   .member h3{margin:0 0 2px;font:600 15px 'Space Grotesk'} .member p{margin:0;font:400 12.5px Inter;color:var(--muted)}
+  .member .av img,.av.pic{width:100%;height:100%;object-fit:cover;border-radius:inherit}
+  .member .desc{margin:8px 0 0;font:400 12.5px/1.5 Inter;color:var(--muted)}
+  /* ---- team layout styles ---- */
+  .t-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .t-flashcard{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .t-flashcard .member{perspective:900px;background:none;border:0;padding:0;height:210px}
+  .t-flashcard .flip{position:relative;width:100%;height:100%;transition:transform .6s;transform-style:preserve-3d}
+  .t-flashcard .member:hover .flip{transform:rotateY(180deg)}
+  .t-flashcard .face{position:absolute;inset:0;backface-visibility:hidden;border:1px solid var(--line);border-radius:16px;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px;text-align:center}
+  .t-flashcard .back{transform:rotateY(180deg);background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 14%,var(--card)),var(--card))}
+  .t-list{display:flex;flex-direction:column;gap:10px}
+  .t-list .member{display:flex;align-items:center;gap:14px;text-align:left;padding:14px 16px}
+  .t-list .member .av{margin:0;flex:0 0 auto}
+  .t-list .member .desc{margin:4px 0 0}
+  .t-circles{display:flex;flex-wrap:wrap;gap:24px;justify-content:center}
+  .t-circles .member{background:none;border:0;padding:0;width:130px}
+  .t-circles .av{width:92px;height:92px}
+  .t-minimal{display:grid;grid-template-columns:repeat(5,1fr);gap:18px}
+  .t-minimal .member{background:none;border:0;padding:6px}
+  .t-minimal .av{width:46px;height:46px;font-size:15px}
+  .t-minimal .desc{display:none}
+  .t-spotlight{display:flex;flex-direction:column;gap:14px}
+  .t-spotlight .member{display:flex;align-items:center;gap:22px;text-align:left;padding:24px}
+  .t-spotlight .av{width:84px;height:84px;flex:0 0 auto}
+  .t-spotlight h3{font-size:20px} .t-spotlight .desc{font-size:14px}
+  @media (max-width:760px){ .t-cards,.t-flashcard,.t-minimal{grid-template-columns:1fr 1fr} }
   .fund{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 10%,var(--card)),var(--card));border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line));border-radius:20px;padding:30px;margin-top:48px}
   .fund h2{margin:0 0 10px} .fund p{margin:0 0 18px;font:400 16px/1.6 Inter;color:var(--muted);max-width:560px}
   .btnrow{display:flex;gap:12px;flex-wrap:wrap}
@@ -76,14 +102,8 @@
     <div class="step an" style="animation-delay:.12s"><div class="n">3</div><h3 data-edit="s2t">Start scheduling</h3><p data-edit="s2b">The team sets their hours and shares a booking page, free.</p></div>
   </div>
 
-  <h2 class="an" data-edit="teamH">The people behind it</h2>
-  <div class="team">
-    <div class="member an"><div class="av">AM</div><h3 data-edit="t0n">Amara Mensah</h3><p data-edit="t0r">Founder</p></div>
-    <div class="member an" style="animation-delay:.05s"><div class="av">TN</div><h3 data-edit="t1n">Tomas Nilsson</h3><p data-edit="t1r">Engineering</p></div>
-    <div class="member an" style="animation-delay:.1s"><div class="av">PR</div><h3 data-edit="t2n">Priya Raman</h3><p data-edit="t2r">Community</p></div>
-    <div class="member an" style="animation-delay:.15s"><div class="av">DO</div><h3 data-edit="t3n">Daniel Obi</h3><p data-edit="t3r">Support</p></div>
-  </div>
-  <p class="note">The names above are placeholders. Replace them with your own team in the page content.</p>
+  <h2 class="an" id="teamH">The people behind it</h2>
+  <div id="team" class="team"></div>
 
   <div class="fund an">
     <h2 data-edit="fundH">Keep it free for the next organisation</h2>
@@ -97,6 +117,24 @@ fetch('/api/landing').then(function(r){return r.json();}).then(function(l){
   if(l&&l.accent){document.documentElement.style.setProperty('--accent',l.accent);document.documentElement.style.setProperty('--accent2',l.accent2||l.accent);}
   if(l&&l.theme==='dark') document.body.classList.add('dark');
 }).catch(function(){});
+// Render "the people behind it" from the no-code team editor.
+(function(){
+  function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':s);return d.innerHTML;}
+  function initials(n){return (n||'?').split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();}
+  function av(m){ return m.imageUrl ? '<div class="av"><img src="'+esc(m.imageUrl)+'" alt="'+esc(m.name)+'"></div>' : '<div class="av">'+esc(initials(m.name))+'</div>'; }
+  fetch('/api/team').then(function(r){return r.json();}).then(function(t){
+    var heading=document.getElementById('teamH'); if(heading&&t.heading) heading.textContent=t.heading;
+    var el=document.getElementById('team'); if(!el) return;
+    var style=t.style||'cards'; el.className='team t-'+style;
+    el.innerHTML=(t.members||[]).map(function(m,i){
+      var name='<h3>'+esc(m.name)+'</h3>', role=m.role?'<p>'+esc(m.role)+'</p>':'', desc=m.description?'<p class="desc">'+esc(m.description)+'</p>':'';
+      if(style==='flashcard'){
+        return '<div class="member an" style="animation-delay:'+(i*0.05)+'s"><div class="flip"><div class="face">'+av(m)+name+role+'</div><div class="face back">'+name+(m.description?desc:role)+'</div></div></div>';
+      }
+      return '<div class="member an" style="animation-delay:'+(i*0.05)+'s">'+av(m)+'<div>'+name+role+desc+'</div></div>';
+    }).join('')||'<p class="meta">No team members yet.</p>';
+  }).catch(function(){});
+})();
 </script>
 <script src="/nav.js"></script>
 <script src="/site-edit.js" data-page="about"></script>

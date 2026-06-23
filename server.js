@@ -115,6 +115,12 @@ const EMAIL_TEMPLATES = {
     vars: ['name', 'orgName'],
     subject: 'You have been removed from {{orgName}}',
     html: '<p>Hi {{name}},</p><p>Your access to {{orgName}} on Enjeeoh has been removed by an administrator.</p>'
+  },
+  policyUpdate: {
+    label: 'Policy / legal document update (broadcast)',
+    vars: [],
+    subject: "We've updated our policies",
+    html: '<p>Hello,</p><p>We have updated our legal documents (for example our <a href="https://enjeeoh.com/privacy">Privacy Policy</a> and <a href="https://enjeeoh.com/terms">Terms</a>).</p><p>Please take a moment to review the changes. By continuing to use Enjeeoh you agree to the updated terms.</p><p>Thank you,<br>The Enjeeoh team</p>'
   }
 };
 function fillTemplate(str, vars) { return String(str || '').replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => (vars[k] == null ? '' : String(vars[k]))); }
@@ -1354,12 +1360,24 @@ app.post('/api/console/test-email', requireSuperAdmin, async (req, res) => {
   const from = emailFrom();
   const r = await sendEmail({ to, subject: 'Enjeeoh test email', html: '<p>This is a test from your Enjeeoh console. If you can read this, email sending works.</p>' });
   if (r.sent) return res.json({ ok: true, from, method: emailMethod() });
-  // Surface the provider's real reason, plus a from-address hint that matches the active provider.
+  // Surface the provider's real reason, plus a hint matched to the provider AND the error.
   const fromDomain = (from.split('@')[1] || '').toLowerCase();
   const freeDomain = FREE_EMAIL_DOMAINS.has(fromDomain);
-  let hint = ' The "from" address (SMTP_FROM) must be on a domain you have verified with ' + emailMethod().replace(' API', '') + '.';
-  if (process.env.RESEND_API_KEY && freeDomain) hint = ` You cannot send from ${fromDomain} via Resend — you do not own that domain. Verify your own domain at resend.com/domains and set SMTP_FROM to an address on it (e.g. noreply@yourdomain.com), or use onboarding@resend.dev to email only your own account.`;
-  res.status(502).json({ error: emailMethod() + ' said: ' + (r.reason || 'send failed') + '.' + hint });
+  const reason = (r.reason || 'send failed');
+  const isTimeout = /timeout|ETIMEDOUT|ECONNREFUSED|ECONNECTION|connect/i.test(reason);
+  let hint;
+  if (process.env.RESEND_API_KEY) {
+    hint = freeDomain
+      ? ` You cannot send from ${fromDomain} via Resend — you do not own it. Verify your own domain at resend.com/domains and set SMTP_FROM to an address on it (e.g. noreply@yourdomain.org), or use onboarding@resend.dev to email only your own account.`
+      : ' The "from" address (SMTP_FROM) must be on a domain you have verified at resend.com/domains.';
+  } else if (process.env.BREVO_API_KEY) {
+    hint = ' The "from" address must be a verified sender on a domain authenticated in Brevo.';
+  } else if (isTimeout) {
+    hint = ' Could not connect — your host (e.g. Railway) is blocking the SMTP port. Switch to Resend: set RESEND_API_KEY and SMTP_FROM (a verified-domain address), and remove GMAIL_USER / GMAIL_APP_PASSWORD / SMTP_* vars.';
+  } else {
+    hint = ' Check your SMTP username/password (for Gmail this must be an App Password, not your normal password).';
+  }
+  res.status(502).json({ error: emailMethod() + ' said: ' + reason + '.' + hint });
 });
 
 // User limits: a global cap across all enterprises and a per-organisation cap.
@@ -1435,6 +1453,70 @@ app.put('/api/donate', requirePerm('content'), async (req, res) => {
   if (Array.isArray(next.options)) next.options = next.options.filter(o => o && o.label && o.url).slice(0, 8).map(o => ({ label: String(o.label).slice(0, 60), url: String(o.url).slice(0, 300) }));
   await store.setDonate(next);
   res.json({ ok: true, donate: next });
+});
+
+// ================= TEAM ("the people behind it") =================
+const TEAM_STYLES = ['cards', 'flashcard', 'list', 'circles', 'minimal', 'spotlight'];
+const TEAM_DEFAULT = {
+  heading: 'The people behind it', style: 'cards',
+  members: [
+    { name: 'Amara Mensah', role: 'Founder', description: '', imageUrl: '' },
+    { name: 'Tomas Nilsson', role: 'Engineering', description: '', imageUrl: '' },
+    { name: 'Priya Raman', role: 'Community', description: '', imageUrl: '' }
+  ]
+};
+app.get('/api/team', async (_req, res) => res.json((await store.getPage('team')) || TEAM_DEFAULT));
+app.put('/api/console/team', requirePerm('content'), async (req, res) => {
+  const b = req.body || {};
+  const next = {
+    heading: String(b.heading || TEAM_DEFAULT.heading).slice(0, 120),
+    style: TEAM_STYLES.includes(b.style) ? b.style : 'cards',
+    members: (Array.isArray(b.members) ? b.members : []).slice(0, 40).map(m => ({
+      name: String(m.name || '').slice(0, 80),
+      role: String(m.role || '').slice(0, 80),
+      description: String(m.description || '').slice(0, 600),
+      imageUrl: cleanImageUrl(m.imageUrl)
+    })).filter(m => m.name)
+  };
+  await store.setPage('team', next);
+  await audit(req, 'team.updated', { text: next.members.length + ' people, style ' + next.style });
+  res.json({ ok: true, team: next });
+});
+
+// ================= BROADCAST (announcements / policy updates) =================
+// Send a one-off email to all organisations or all members — e.g. to notify users
+// that a policy or legal document changed.
+app.post('/api/console/broadcast', requireSuperAdmin, async (req, res) => {
+  if (!emailEnabled()) return res.status(400).json({ error: 'Email is not configured.' });
+  const subject = String(req.body?.subject || '').slice(0, 200).trim();
+  const html = String(req.body?.html || '').slice(0, 50000).trim();
+  const audience = ['orgs', 'members', 'all'].includes(req.body?.audience) ? req.body.audience : 'orgs';
+  const test = !!req.body?.test;
+  if (!subject || !html) return res.status(400).json({ error: 'A subject and message are required.' });
+
+  // Build the de-duplicated recipient list.
+  const set = new Set();
+  if (test) { set.add(req.console.email); }
+  else {
+    if (audience === 'orgs' || audience === 'all') {
+      for (const a of await store.listAllAccounts()) if (a.email && !a.deleted) set.add(a.email.toLowerCase());
+    }
+    if (audience === 'members' || audience === 'all') {
+      for (const m of await store.listAllMembers()) if (m.email && m.status === 'active' && !m.suspended) set.add(m.email.toLowerCase());
+    }
+  }
+  const recipients = [...set];
+  if (!recipients.length) return res.status(400).json({ error: 'No recipients for that audience.' });
+
+  // Send sequentially with a tiny gap so we don't hammer the provider.
+  let sent = 0, failed = 0;
+  for (const to of recipients) {
+    const r = await sendEmail({ to, subject, html });
+    if (r.sent) sent++; else failed++;
+    await new Promise(r => setTimeout(r, 80));
+  }
+  await audit(req, 'broadcast.sent', { actor: req.console.email, text: `${subject} → ${audience} (${sent} sent, ${failed} failed${test ? ', TEST' : ''})` });
+  res.json({ ok: true, sent, failed, total: recipients.length, test });
 });
 
 // ================= EMBED + PAGES =================

@@ -184,6 +184,12 @@ async function run() {
   ok((await api('/api/console/org/' + orgId + '/reactivate', { method: 'POST', token: SAT })).status === 200, 'super admin reactivates the org');
   ok((await api('/api/console/applications', { token: SAT })).data.find(a => a.id === orgId).deleted === false, 'reactivated org is no longer deleted');
 
+  // ---- team editor + broadcast ----
+  ok((await api('/api/console/team', { method: 'PUT', token: CO, body: { heading: 'Our crew', style: 'flashcard', members: [{ name: 'Ada', role: 'Lead', description: 'Builds things', imageUrl: 'https://example.org/a.jpg' }] } })).status === 200, 'content admin saves the team');
+  const team = (await api('/api/team')).data;
+  ok(team.style === 'flashcard' && team.members[0].name === 'Ada', 'public team reflects the editor');
+  ok((await api('/api/console/broadcast', { method: 'POST', token: CO, body: { subject: 'x', html: '<p>x</p>' } })).status === 403, 'broadcast is super-admin only');
+
   // ---- v2: multi-coach services ----
   const adaId = (await api('/api/me', { token: ADMIN })).data.member.id;
   await api('/api/me/profile', { method: 'PUT', token: ADMIN, body: { title: 'Lead Coach', bio: 'Ten years experience.', imageUrl: 'https://example.org/ada.jpg' } });

@@ -501,25 +501,66 @@ function loadEmails(){
       return '<details class="acc"><summary>'+esc(d.label)+(d.customised?' <span class="badge b-pending">customised</span>':'')+'</summary><div class="acc-body">'+
         '<div class="field"><label>Subject</label><input style="width:100%" id="et-sub-'+k+'" value="'+attr(d.subject)+'"></div>'+
         '<div class="field"><label>Message</label>'+
-          '<div class="toolbar" style="margin:0 0 6px;gap:4px">'+tbtn('<b>B</b>','bold',k)+tbtn('<i>I</i>','italic',k)+tbtn('<u>U</u>','underline',k)+tbtn('Heading','formatBlock:h3',k)+tbtn('• List','insertUnorderedList',k)+tbtn('Link','createLink',k)+tbtn('Clear','removeFormat',k)+'</div>'+
+          '<div class="toolbar" style="margin:0 0 6px;gap:4px">'+tbtn('<b>B</b>','bold',k)+tbtn('<i>I</i>','italic',k)+tbtn('<u>U</u>','underline',k)+tbtn('Heading','formatBlock:h3',k)+tbtn('• List','insertUnorderedList',k)+tbtn('Link','createLink',k)+tbtn('🖼 Image','image',k)+tbtn('Clear','removeFormat',k)+'</div>'+
           '<div id="et-html-'+k+'" contenteditable="true" class="wysiwyg">'+d.html+'</div>'+
           '<div class="meta" style="margin-top:6px">Insert placeholder: '+vars+'</div>'+
         '</div>'+
-        '<div class="lim"><button class="go" onclick="saveTpl(\''+k+'\')">Save</button><button class="ghost" onclick="resetTpl(\''+k+'\')">Reset to default</button><span class="err" id="et-msg-'+k+'" style="margin:0"></span></div></div></details>';
+        '<div class="lim"><button class="go" onclick="saveTpl(\''+k+'\')">Save</button><button class="ghost" onclick="etPreview(\''+k+'\')">Preview</button><button class="ghost" onclick="resetTpl(\''+k+'\')">Reset to default</button><span class="err" id="et-msg-'+k+'" style="margin:0"></span></div></div></details>';
     }).join('');
-    document.getElementById('emails').innerHTML='<div class="card"><h3 style="margin:0 0 4px;font:600 16px Space Grotesk">Email templates</h3><p class="meta">Every lifecycle email the platform sends. Click one to edit. Format visually and drop in placeholders — no HTML needed. Reset restores the built-in default.</p></div>'+cards;
+    var pu=t.policyUpdate||{subject:'',html:''};
+    var bcToolbar='<div class="toolbar" style="margin:0 0 6px;gap:4px">'+tbtn('<b>B</b>','bold','broadcast')+tbtn('<i>I</i>','italic','broadcast')+tbtn('Heading','formatBlock:h3','broadcast')+tbtn('• List','insertUnorderedList','broadcast')+tbtn('Link','createLink','broadcast')+tbtn('🖼 Image','image','broadcast')+tbtn('Clear','removeFormat','broadcast')+'</div>';
+    var broadcast='<div class="card"><h3 style="margin:0 0 4px;font:600 16px Space Grotesk">Send an announcement / policy update</h3>'+
+      '<p class="meta">Email all organisations or members — e.g. to tell them a policy or legal document changed. Edit the customisable "Policy / legal document update" template below to change the default wording.</p>'+
+      '<div class="field"><label>Subject</label><input id="et-sub-broadcast" style="width:100%" value="'+attr(pu.subject)+'"></div>'+
+      '<div class="field"><label>Message</label>'+bcToolbar+'<div id="et-html-broadcast" contenteditable="true" class="wysiwyg">'+pu.html+'</div></div>'+
+      '<div class="lim" style="margin-top:8px">Send to: <select id="bc-aud"><option value="orgs">Organisations (their contact email)</option><option value="members">All members</option><option value="all">Everyone</option></select>'+
+      '<button class="ghost" onclick="etPreview(\'broadcast\')">Preview</button><button class="ghost" onclick="bcSend(true)">Send test to me</button><button class="go" onclick="bcSend(false)">Send to all</button></div>'+
+      '<div class="meta" id="bc-res" style="margin-top:6px"></div></div>';
+    document.getElementById('emails').innerHTML=broadcast+'<div class="card"><h3 style="margin:0 0 4px;font:600 16px Space Grotesk">Email templates</h3><p class="meta">Every lifecycle email the platform sends. Click one to edit. Format visually, add images, and preview — no HTML needed. Reset restores the built-in default.</p></div>'+cards;
   });
 }
+window.bcSend=function(test){
+  var subject=document.getElementById('et-sub-broadcast').value.trim();
+  var html=document.getElementById('et-html-broadcast').innerHTML;
+  var audience=document.getElementById('bc-aud').value;
+  if(!subject){ appToast('Add a subject first.','err'); return; }
+  var doSend=function(){
+    var res=document.getElementById('bc-res'); res.style.color='var(--muted)'; res.textContent='Sending…';
+    fetch('/api/console/broadcast',{method:'POST',headers:H(),body:JSON.stringify({subject:subject,html:html,audience:audience,test:test})})
+      .then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error);return d;});})
+      .then(function(d){ res.style.color='var(--accent)'; res.textContent=(test?'Test sent to you. ':'')+'Sent '+d.sent+' of '+d.total+(d.failed?(' ('+d.failed+' failed)'):'')+'.'; })
+      .catch(function(e){ res.style.color='#C0392B'; res.textContent=e.message; });
+  };
+  if(test){ doSend(); return; }
+  appConfirm({title:'Send to all',message:'Send this email now to all '+audience+'? It goes out immediately and cannot be unsent.',confirmText:'Send to all',danger:true}).then(function(ok){ if(ok)doSend(); });
+};
 // Toolbar command. onmousedown + preventDefault keeps the editor selection.
 window.etCmd=function(e,cmd,k){
   e.preventDefault();
   document.getElementById('et-html-'+k).focus();
   if(cmd==='createLink'){ var url=prompt('Link URL (https://...)'); if(url) document.execCommand('createLink',false,url); return false; }
+  if(cmd==='image'){ var iu=prompt('Image URL (https://... or a hosted picture)'); if(iu&&/^(https?:\/\/|data:image\/)/i.test(iu)) document.execCommand('insertHTML',false,'<img src="'+iu.replace(/"/g,'&quot;')+'" style="max-width:100%;border-radius:8px" alt="">'); return false; }
   if(cmd.indexOf('formatBlock:')===0){ document.execCommand('formatBlock',false,cmd.split(':')[1]); return false; }
   document.execCommand(cmd,false,null);
   return false;
 };
 window.etInsert=function(e,k,v){ e.preventDefault(); document.getElementById('et-html-'+k).focus(); document.execCommand('insertText',false,'{{'+v+'}}'); return false; };
+// Render the email in an email-like frame, with placeholders filled with sample values.
+window.etPreview=function(k){
+  var subj=document.getElementById('et-sub-'+k).value, html=document.getElementById('et-html-'+k).innerHTML;
+  var sample={orgName:'Riverside Trust',name:'Alex',inviterName:'Sam',setupUrl:'#',inviteUrl:'#',adminUrl:'#',resetUrl:'#',note:'(your note here)',ageDays:'45'};
+  var filled=function(s){return String(s).replace(/\{\{\s*(\w+)\s*\}\}/g,function(_,v){return sample[v]!=null?sample[v]:'{{'+v+'}}';});};
+  showEmailPreview(filled(subj),filled(html));
+};
+function showEmailPreview(subject,bodyHtml){
+  var ov=document.createElement('div'); ov.className='modal-ov';
+  ov.innerHTML='<div class="modal-card" style="max-width:560px;padding:0;overflow:hidden">'+
+    '<div style="background:var(--soft);padding:14px 18px;border-bottom:1px solid var(--line)"><div class="meta" style="margin:0">Subject</div><div style="font-weight:600">'+esc(subject)+'</div></div>'+
+    '<div style="background:#fff;color:#15162a;padding:22px;max-height:60vh;overflow:auto;font:400 15px/1.6 Inter">'+bodyHtml+'</div>'+
+    '<div class="modal-acts" style="padding:12px 16px;border-top:1px solid var(--line)"><button class="go" data-a="x">Close</button></div></div>';
+  ov.addEventListener('click',function(e){ if(e.target===ov||e.target.getAttribute('data-a')==='x') ov.remove(); });
+  document.body.appendChild(ov);
+}
 window.saveTpl=function(k){
   var msg=document.getElementById('et-msg-'+k);
   fetch('/api/console/email-templates/'+k,{method:'PUT',headers:H(),body:JSON.stringify({subject:document.getElementById('et-sub-'+k).value,html:document.getElementById('et-html-'+k).innerHTML})})
@@ -532,6 +573,7 @@ var navItems=[];
 function loadDesign(){
   document.getElementById('design').innerHTML='<div class="card"><div class="tabs" id="dtabs" style="margin:0 0 14px">'+
     '<button class="tab on" data-d="menu">Menu</button>'+
+    '<button class="tab" data-d="team">Team</button>'+
     '<button class="tab" data-d="/editor">Landing</button>'+
     '<button class="tab" data-d="/donate">Support</button>'+
     '<button class="tab" data-d="/about">About</button>'+
@@ -549,6 +591,7 @@ function loadDesign(){
 function openDesign(d){
   var pane=document.getElementById('dpane');
   if(d==='menu'){ fetch('/api/nav').then(function(r){return r.json();}).then(function(items){ navItems=items.slice(); pane.innerHTML='<div id="nav-editor"></div>'; renderNav(); }); return; }
+  if(d==='team'){ fetch('/api/team').then(function(r){return r.json();}).then(function(t){ teamData=t; pane.innerHTML='<div id="team-editor"></div>'; renderTeamEditor(); }); return; }
   // Load the page in edit mode so its in-place visual editor (Edit button) appears.
   var src = d + (d.indexOf('?')<0?'?edit=1':'&edit=1');
   pane.innerHTML='<p class="meta" style="margin:0 0 8px">This page is editable here. Click <b>Edit page</b> (bottom-right of the preview), make changes, then Save and publish.</p><iframe src="'+src+'" style="width:100%;height:72vh;border:1px solid var(--line);border-radius:12px;background:#fff"></iframe>';
@@ -562,6 +605,40 @@ window.navAdd=function(){ syncNav(); navItems.push({label:'New link',href:'/'});
 window.navDel=function(i){ syncNav(); navItems.splice(i,1); renderNav(); };
 window.navMove=function(i,d){ syncNav(); var j=i+d; if(j<0||j>=navItems.length)return; var t=navItems[i];navItems[i]=navItems[j];navItems[j]=t; renderNav(); };
 window.navSave=function(){ syncNav(); fetch('/api/console/nav',{method:'PUT',headers:H(),body:JSON.stringify({items:navItems})}).then(function(r){return r.json().then(function(d){var e=document.getElementById('naverr');e.style.color=r.ok?'var(--accent)':'#C0392B';e.textContent=r.ok?'Saved.':(d.error||'Failed');});}); };
+
+// ---- Team editor ("the people behind it") ----
+var teamData={heading:'The people behind it',style:'cards',members:[]};
+var TEAM_STYLE_OPTS=[['cards','Cards'],['flashcard','Flashcard (flips on hover)'],['list','List'],['circles','Circles'],['minimal','Minimal'],['spotlight','Spotlight']];
+function syncTeam(){
+  teamData.heading=document.getElementById('tm-head').value;
+  teamData.style=document.getElementById('tm-style').value;
+  teamData.members=Array.prototype.map.call(document.querySelectorAll('#tm-list .tm-row'),function(r){
+    return {name:r.querySelector('.tm-name').value,role:r.querySelector('.tm-role').value,description:r.querySelector('.tm-desc').value,imageUrl:r.querySelector('.tm-img').value};
+  });
+}
+function renderTeamEditor(){
+  var styleSel='<select id="tm-style">'+TEAM_STYLE_OPTS.map(function(o){return '<option value="'+o[0]+'"'+(teamData.style===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>';
+  var rows=(teamData.members||[]).map(function(m,i){
+    return '<div class="tm-row card" style="padding:12px;margin-bottom:8px"><div class="row" style="gap:10px">'+
+      '<div style="flex:1;min-width:200px"><label class="meta">Name</label><input class="tm-name" style="width:100%" value="'+attr(m.name)+'"></div>'+
+      '<div style="flex:1;min-width:160px"><label class="meta">Role</label><input class="tm-role" style="width:100%" value="'+attr(m.role)+'"></div></div>'+
+      '<div class="field" style="margin:8px 0 0"><label class="meta">Photo URL</label><input class="tm-img" style="width:100%" placeholder="https://… (leave blank for initials)" value="'+attr(m.imageUrl)+'"></div>'+
+      '<div class="field" style="margin:8px 0 0"><label class="meta">Short description</label><textarea class="tm-desc" rows="2" style="width:100%">'+esc(m.description)+'</textarea></div>'+
+      '<div class="lim"><button class="ghost" onclick="teamMove('+i+',-1)">Up</button><button class="ghost" onclick="teamMove('+i+',1)">Down</button><button class="no" onclick="teamDel('+i+')">Remove</button></div></div>';
+  }).join('');
+  document.getElementById('team-editor').innerHTML='<h3 style="margin:0 0 4px;font:600 16px Space Grotesk">Team — "the people behind it"</h3>'+
+    '<p class="meta">Shown on the About page. Add people with a photo and description, and pick a layout style.</p>'+
+    '<div class="field"><label>Section heading</label><input id="tm-head" style="width:100%" value="'+attr(teamData.heading)+'"></div>'+
+    '<div class="field"><label>Layout style</label>'+styleSel+'</div>'+
+    '<div id="tm-list" style="margin-top:10px">'+rows+'</div>'+
+    '<div class="lim"><button class="ghost" onclick="teamAdd()">Add person</button><button class="go" onclick="teamSave()">Save team</button><a class="ghost" href="/about" target="_blank" style="text-decoration:none">Preview ↗</a><span class="err" id="tm-msg" style="margin:0"></span></div>';
+}
+window.teamAdd=function(){ syncTeam(); teamData.members.push({name:'New person',role:'',description:'',imageUrl:''}); renderTeamEditor(); };
+window.teamDel=function(i){ syncTeam(); teamData.members.splice(i,1); renderTeamEditor(); };
+window.teamMove=function(i,d){ syncTeam(); var j=i+d; if(j<0||j>=teamData.members.length)return; var t=teamData.members[i];teamData.members[i]=teamData.members[j];teamData.members[j]=t; renderTeamEditor(); };
+window.teamSave=function(){ syncTeam(); var msg=document.getElementById('tm-msg');
+  fetch('/api/console/team',{method:'PUT',headers:H(),body:JSON.stringify(teamData)}).then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error);return d;});})
+    .then(function(){ msg.style.color='var(--accent)'; msg.textContent='Saved.'; }).catch(function(e){ msg.style.color='#C0392B'; msg.textContent=e.message; }); };
 
 // ================= SECURITY =================
 function loadSecurity(){
