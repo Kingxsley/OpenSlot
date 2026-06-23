@@ -132,20 +132,28 @@ export function requirePerm(perm) {
 }
 
 // ---- optional email ----
-// Three transports are supported, in order of preference:
-//   1. Resend     (RESEND_API_KEY)  - simplest, generous free tier, HTTPS API
-//   2. Brevo      (BREVO_API_KEY)   - HTTPS API, free tier
-//   3. SMTP       (SMTP_HOST/USER/PASS) - any provider, including Gmail app passwords
-// All three need a verified from address in SMTP_FROM (or EMAIL_FROM).
+// Transports, in order of preference:
+//   1. Resend  (RESEND_API_KEY)  - HTTPS API, but the from-address must be a domain you own
+//   2. Brevo   (BREVO_API_KEY)   - HTTPS API, also needs an authenticated from-domain
+//   3. SMTP    (SMTP_HOST/USER/PASS) - any provider
+//   3b. Gmail shortcut: just set GMAIL_USER + GMAIL_APP_PASSWORD and it sends via Gmail
+//       (free, no domain needed; from = your Gmail address).
 let transporter = null;
-export function emailEnabled() { return Boolean(process.env.RESEND_API_KEY || process.env.BREVO_API_KEY || (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)); }
-export function emailMethod() { return process.env.RESEND_API_KEY ? 'Resend API' : (process.env.BREVO_API_KEY ? 'Brevo API' : (process.env.SMTP_HOST ? 'SMTP' : 'none')); }
-function emailFrom() { return process.env.SMTP_FROM || process.env.EMAIL_FROM || process.env.SMTP_USER || ''; }
+// Gmail shortcut resolves into normal SMTP settings when SMTP_* are not set.
+function smtpHost() { return process.env.SMTP_HOST || ((process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) ? 'smtp.gmail.com' : ''); }
+function smtpUser() { return process.env.SMTP_USER || process.env.GMAIL_USER || ''; }
+function smtpPass() { return process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || ''; }
+function smtpPort() { return Number(process.env.SMTP_PORT || 465); }
+function smtpReady() { return Boolean(smtpHost() && smtpUser() && smtpPass()); }
+const usingGmailShortcut = () => !process.env.SMTP_HOST && process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD;
+export function emailEnabled() { return Boolean(process.env.RESEND_API_KEY || process.env.BREVO_API_KEY || smtpReady()); }
+export function emailMethod() { return process.env.RESEND_API_KEY ? 'Resend API' : (process.env.BREVO_API_KEY ? 'Brevo API' : (smtpReady() ? (usingGmailShortcut() ? 'Gmail SMTP' : 'SMTP') : 'none')); }
+export function emailFrom() { return process.env.SMTP_FROM || process.env.EMAIL_FROM || smtpUser() || ''; }
 function emailFromName() { return process.env.EMAIL_FROM_NAME || 'Enjeeoh'; }
 function getTransporter() {
-  if (!transporter && process.env.SMTP_HOST) {
-    transporter = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT || 465),
-      secure: Number(process.env.SMTP_PORT || 465) === 465, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
+  if (!transporter && smtpHost()) {
+    transporter = nodemailer.createTransport({ host: smtpHost(), port: smtpPort(),
+      secure: smtpPort() === 465, auth: { user: smtpUser(), pass: smtpPass() } });
   }
   return transporter;
 }

@@ -7,7 +7,7 @@ import { slotsForDate, labelTime } from './src/availability.js';
 import { buildICS, googleCalLink, outlookLink } from './src/ics.js';
 import {
   hashPassword, checkPassword, issueMemberToken, issueReviewerToken, issueConsoleToken, issueMfaToken, verifyToken,
-  requireMember, requireMemberOrSetup, requireOrgAdmin, requireOrgManager, canManageOwnEvents, requireReviewer, requireConsole, requireSuperAdmin, requirePerm, sendEmail, emailEnabled, emailMethod, sendSms, smsEnabled
+  requireMember, requireMemberOrSetup, requireOrgAdmin, requireOrgManager, canManageOwnEvents, requireReviewer, requireConsole, requireSuperAdmin, requirePerm, sendEmail, emailEnabled, emailMethod, emailFrom, sendSms, smsEnabled
 } from './src/auth.js';
 import { newMfaSecret, verifyTotp, mfaQrDataUrl, newRecoveryCodes } from './src/mfa.js';
 
@@ -1159,6 +1159,34 @@ app.get('/api/console/org/:id/members', requireSuperAdmin, async (req, res) => {
   const members = await store.listMembers(req.params.id);
   res.json(members.map(m => ({ id: m.id, name: m.name, email: m.email, role: m.role, status: m.status, suspended: !!m.suspended, locked: !!(m.lockedUntil && new Date(m.lockedUntil).getTime() > Date.now()), forceReset: !!m.forceReset })));
 });
+
+// Bulk-add members to an org. Each new member is created as "invited" and emailed
+// a link to set their own password.
+app.post('/api/console/org/:id/members/bulk', requireSuperAdmin, async (req, res) => {
+  const a = await store.getAccountById(req.params.id);
+  if (!a) return res.status(404).json({ error: 'Organisation not found.' });
+  const rows = Array.isArray(req.body?.members) ? req.body.members.slice(0, 500) : [];
+  if (!rows.length) return res.status(400).json({ error: 'Add at least one member (one per line).' });
+  const limits = (await store.getPage('limits')) || {};
+  const orgCap = a.maxMembers > 0 ? a.maxMembers : 0;
+  let added = 0; const skipped = [], errors = [], invites = [];
+  for (const row of rows) {
+    const email = String(row.email || '').trim().toLowerCase();
+    const name = (String(row.name || '').trim()) || (email.split('@')[0] || '');
+    const role = ['admin', 'manager', 'member'].includes(row.role) ? row.role : 'member';
+    if (!email || !email.includes('@')) { errors.push((email || '(blank)') + ' — invalid email'); continue; }
+    if (await store.getMemberByEmail(email)) { skipped.push(email + ' — already a member'); continue; }
+    if (orgCap && (await store.countMembers(a.id)) >= orgCap) { errors.push(email + ' — org is at its member limit'); continue; }
+    if (limits.globalMax > 0 && (await store.countAllMembers()) >= limits.globalMax) { errors.push(email + ' — platform is at capacity'); break; }
+    const inviteToken = crypto.randomBytes(16).toString('hex');
+    await store.createMember(a.id, { name, email, passwordHash: '', role, status: 'invited', inviteToken, slug: await uniqueMemberSlug(a.id, name) });
+    sendTemplate('memberInvite', email, { orgName: a.name, inviterName: req.console.email, inviteUrl: `${baseUrl(req)}/join?token=${inviteToken}` });
+    invites.push({ email, url: `${baseUrl(req)}/join?token=${inviteToken}` });
+    added++;
+  }
+  await audit(req, 'members.bulk-added', { accountId: a.id, accountName: a.name, actor: req.console.email, text: `${added} added, ${skipped.length} skipped` });
+  res.json({ ok: true, added, skipped, errors, emailed: emailEnabled(), invites });
+});
 app.post('/api/console/member/:id/suspend', requireSuperAdmin, async (req, res) => {
   const m = await store.updateMember(req.params.id, { suspended: true });
   await audit(req, 'member.suspended', { accountId: m?.accountId, actor: req.console.email, text: m?.email || req.params.id });
@@ -1307,8 +1335,8 @@ app.get('/api/console/logs', requireConsole, async (req, res) => {
 app.post('/api/console/test-email', requireSuperAdmin, async (req, res) => {
   const to = (req.body?.to || '').trim();
   if (!to) return res.status(400).json({ error: 'Enter an email address to test.' });
-  if (!emailEnabled()) return res.status(400).json({ error: 'Email is not configured. Set RESEND_API_KEY (or BREVO_API_KEY, or SMTP_HOST/USER/PASS) plus SMTP_FROM.' });
-  const from = process.env.SMTP_FROM || process.env.EMAIL_FROM || process.env.SMTP_USER || '';
+  if (!emailEnabled()) return res.status(400).json({ error: 'Email is not configured. Set RESEND_API_KEY + SMTP_FROM, or GMAIL_USER + GMAIL_APP_PASSWORD, or SMTP_HOST/USER/PASS + SMTP_FROM.' });
+  const from = emailFrom();
   const r = await sendEmail({ to, subject: 'Enjeeoh test email', html: '<p>This is a test from your Enjeeoh console. If you can read this, email sending works.</p>' });
   if (r.sent) return res.json({ ok: true, from, method: emailMethod() });
   // Surface the provider's real reason, plus a from-address hint that matches the active provider.
@@ -1488,7 +1516,7 @@ function securityPreflight() {
   if (process.env.NODE_ENV === 'production' && !process.env.MONGODB_URI) warns.push('Running in production on the JSON file store — set MONGODB_URI.');
   // Catch the most common email mistake: Resend/Brevo cannot send "from" a free
   // mailbox domain you do not own — it will reject every message.
-  const fromAddr = process.env.SMTP_FROM || process.env.EMAIL_FROM || process.env.SMTP_USER || '';
+  const fromAddr = emailFrom();
   const fromDomain = (fromAddr.split('@')[1] || '').toLowerCase();
   if ((process.env.RESEND_API_KEY || process.env.BREVO_API_KEY) && FREE_EMAIL_DOMAINS.has(fromDomain)) {
     warns.push(`Email will FAIL: ${emailMethod()} cannot send from ${fromDomain} (you do not own it). Either (a) verify your own domain and set SMTP_FROM=you@yourdomain, or (b) use Gmail SMTP instead — unset RESEND_API_KEY and set SMTP_HOST=smtp.gmail.com, SMTP_USER=${fromAddr || 'you@gmail.com'}, SMTP_PASS=<gmail app password>, SMTP_FROM=${fromAddr || 'you@gmail.com'}.`);
@@ -1499,7 +1527,7 @@ function securityPreflight() {
 app.listen(PORT, () => {
   securityPreflight();
   console.log(`\n  Enjeeoh on ${PUBLIC_URL}`);
-  console.log(`  Email sending: ${emailEnabled() ? 'on via ' + emailMethod() + ', from ' + (process.env.SMTP_FROM || process.env.EMAIL_FROM || process.env.SMTP_USER || '(no from set)') : 'OFF'}`);
+  console.log(`  Email sending: ${emailEnabled() ? 'on via ' + emailMethod() + ', from ' + (emailFrom() || '(no from set)') : 'OFF'}`);
   console.log(`  Apply ${PUBLIC_URL}/signup · Dashboard ${PUBLIC_URL}/admin · Console ${PUBLIC_URL}/console`);
   console.log(`  Email ${emailEnabled() ? 'on' : 'off'}\n`);
 });

@@ -6,14 +6,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root{--accent:#0F9D7A;--ink:#16182D;--muted:#6B7280;--line:#ECEDF3;--bg:#FBFBFD}
+  :root{--accent:#0F9D7A;--ink:#16182D;--muted:#6B7280;--line:#ECEDF3;--bg:#FBFBFD;--card:#FFF}
   *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif}
   .wrap{max-width:420px;margin:70px auto;padding:0 20px}
   .eyebrow{font:600 12px Inter;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 8px}
   h1{font:700 26px 'Space Grotesk';margin:0 0 8px} .sub{color:var(--muted);font-size:15px;margin:0 0 24px;line-height:1.5}
-  .panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px}
   label{display:block;font:600 13px Inter;margin:0 0 6px}
-  input{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 13px;font:400 15px Inter;margin-bottom:16px}
+  input{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 13px;font:400 15px Inter;background:var(--bg);color:var(--ink);margin-bottom:16px}
+  label{color:var(--ink)}
   input:focus{outline:none;border-color:var(--accent)}
   button{width:100%;background:var(--accent);color:#fff;border:0;border-radius:11px;padding:13px;font:600 15px Inter;cursor:pointer}
   .err{color:#C0392B;font-size:14px;margin-top:10px;min-height:18px}
@@ -56,5 +57,6 @@ document.getElementById('go').onclick = async () => {
 };
 init();
 </script>
+<script src="/nav.js"></script>
 </body>
 </html>

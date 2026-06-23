@@ -338,6 +338,15 @@ function initials(n){ return (n||'?').split(' ').map(w=>w[0]).join('').slice(0,2
 function flash(id){ const e=document.getElementById(id); e.classList.remove('hidden'); setTimeout(()=>e.classList.add('hidden'),1700); }
 
 let pendingSetupToken='';
+// Forgot password: reveal the email box, then post to /api/forgot.
+document.getElementById('forgotLink').onclick=(e)=>{ e.preventDefault(); const b=document.getElementById('forgotBox'); b.style.display=b.style.display==='none'?'block':'none'; document.getElementById('fe').focus(); };
+document.getElementById('fbtn').onclick=async()=>{
+  const fe=document.getElementById('fe'), fok=document.getElementById('fok'); fok.classList.add('hidden');
+  const email=fe.value.trim(); if(!email){ fe.focus(); return; }
+  const btn=document.getElementById('fbtn'); btn.disabled=true; btn.textContent='Sending…';
+  try{ await fetch('/api/forgot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})}); }catch(e){}
+  fok.classList.remove('hidden'); btn.disabled=false; btn.textContent='Send reset link';
+};
 document.getElementById('li-btn').onclick=async()=>{
   const err=document.getElementById('li-err'); err.textContent='';
   try{ const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('li-email').value.trim(),password:document.getElementById('li-pass').value})});

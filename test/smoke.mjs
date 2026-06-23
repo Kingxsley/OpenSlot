@@ -167,6 +167,16 @@ async function run() {
   // members tab is super-admin only
   ok((await api('/api/console/members', { token: ON2 })).status === 403, 'non-super-admin cannot list all members');
 
+  // ---- bulk add members to an org ----
+  const bulk = await api('/api/console/org/' + orgId + '/members/bulk', { method: 'POST', token: SAT, body: { members: [
+    { name: 'Bulk One', email: 'bulk1@careco.org', role: 'member' },
+    { name: 'Bulk Two', email: 'bulk2@careco.org', role: 'manager' },
+    { email: 'ada@careco.org' } // duplicate -> skipped
+  ] } });
+  ok(bulk.status === 200 && bulk.data.added === 2 && bulk.data.skipped.length === 1, 'super admin bulk-adds members (skips duplicates)');
+  ok((await api('/api/console/org/' + orgId + '/members', { token: SAT })).data.some(m => m.email === 'bulk1@careco.org' && m.status === 'invited'), 'bulk members created as invited');
+  ok((await api('/api/console/org/' + orgId + '/members/bulk', { method: 'POST', token: ON2, body: { members: [{ email: 'x@careco.org' }] } })).status === 403, 'non-super-admin cannot bulk add');
+
   // ---- v2: multi-coach services ----
   const adaId = (await api('/api/me', { token: ADMIN })).data.member.id;
   await api('/api/me/profile', { method: 'PUT', token: ADMIN, body: { title: 'Lead Coach', bio: 'Ten years experience.', imageUrl: 'https://example.org/ada.jpg' } });
