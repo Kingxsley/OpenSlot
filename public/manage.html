@@ -71,7 +71,10 @@ function render(){
     '<div class="err" id="err"></div>';
   document.getElementById('cx').onclick=async()=>{ if(!await appConfirm({title:'Cancel booking',message:'Cancel this booking? This cannot be undone.',confirmText:'Cancel booking',danger:true}))return;
     const r=await fetch(base+'/cancel',{method:'POST'}); if(r.ok){ DATA.status='cancelled'; render(); } else { document.getElementById('err').textContent='Could not cancel.'; } };
-  document.getElementById('rs').onclick=()=>{ document.getElementById('rsbox').classList.toggle('hide'); };
+  document.getElementById('rs').onclick=()=>{ var box=document.getElementById('rsbox'); box.classList.toggle('hide');
+    // Block past dates in the picker (min = now, local time).
+    var n=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+    document.getElementById('rsinput').min=n; };
   document.getElementById('rssave').onclick=async()=>{
     const v=document.getElementById('rsinput').value; const err=document.getElementById('err'); err.textContent='';
     if(!v){ err.textContent='Pick a new date and time.'; return; }

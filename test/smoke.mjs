@@ -113,6 +113,7 @@ async function run() {
   ok(!!bk.data.booking?.id, 'public booking created');
   const bid = bk.data.booking.id;
   const newStart = new Date(new Date(slot).getTime() + 86400000).toISOString();
+  ok((await api('/api/org/bookings/' + bid + '/reschedule', { method: 'POST', token: ADMIN, body: { start: new Date(Date.now() - 86400000).toISOString() } })).status === 400, 'cannot reschedule to a past time');
   ok((await api('/api/org/bookings/' + bid + '/reschedule', { method: 'POST', token: ADMIN, body: { start: newStart } })).status === 200, 'admin reschedules booking');
   ok((await api('/api/org/bookings/' + bid + '/cancel', { method: 'POST', token: ADMIN, body: {} })).status === 200, 'admin cancels booking');
 
@@ -201,6 +202,9 @@ async function run() {
   const pubSvcs = await api(`/api/biz/${oslug}/services`);
   ok(pubSvcs.status === 200 && pubSvcs.data.services.some(s => s.slug === 'coaching'), 'public sees the service');
   ok((await api(`/api/biz/${oslug}/services/coaching`)).data.coaches[0].title === 'Lead Coach', 'public sees coach profile');
+  ok((await api(`/api/biz/${oslug}/services/coaching`)).data.service.showCoaches === true, 'service exposes showCoaches (default on)');
+  await api('/api/org/services/' + svc.data.service.id, { method: 'PUT', token: ADMIN, body: { showCoaches: false } });
+  ok((await api(`/api/biz/${oslug}/services/coaching`)).data.service.showCoaches === false, 'admin can hide the team on the booking page');
   // availability + aggregated slots + booking
   await api('/api/me/availability', { method: 'PUT', token: ADMIN, body: { availability: { 1: [{ start: '09:00', end: '17:00' }] }, blockedDates: [] } });
   const svcSlots = (await api(`/api/biz/${oslug}/services/coaching/slots?date=${mon}`)).data;

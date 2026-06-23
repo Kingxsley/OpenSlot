@@ -66,7 +66,7 @@
 </head>
 <body>
 <div class="wrap">
-  <div id="login" class="login">
+  <div id="login" class="login hidden">
     <h1>Enjeeoh</h1><p class="sub">Sign in to manage your schedule.</p>
     <div class="panel">
       <label>Email</label><input id="li-email" type="email">
@@ -266,6 +266,7 @@
             <div style="max-width:160px"><label>Seats per session</label><input id="svc-capacity" type="number" min="1" value="1"></div>
             <div style="display:flex;align-items:flex-end;padding-bottom:8px"><label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:500"><input type="checkbox" id="svc-waitlist" checked style="width:auto"> Offer a waitlist when full</label></div>
           </div>
+          <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:500"><input type="checkbox" id="svc-showteam" checked style="width:auto"> Show the team list on the booking page</label>
           <p class="sub" style="margin:2px 0 0">Seats = 1 is a private 1:1 session. More than 1 makes it a group session (workshop) that several people can join at the same time.</p>
           <label style="margin-top:12px">Intake questions <span class="sub" style="font-weight:400">— asked when someone books</span></label>
           <div id="svc-intake"></div>
@@ -558,6 +559,7 @@ function svcFormValues(){
     assignMode:document.getElementById('svc-assign').value,
     capacity:document.getElementById('svc-capacity').value,
     waitlistEnabled:document.getElementById('svc-waitlist').checked,
+    showCoaches:document.getElementById('svc-showteam').checked,
     intakeQuestions:gatherIntake(),
     active:document.getElementById('svc-active').checked,
     memberIds:Array.prototype.map.call(document.querySelectorAll('#svc-coaches input:checked'),x=>x.value)
@@ -576,6 +578,7 @@ function editService(id){
   document.getElementById('svc-assign').value=s.assignMode||'choose';
   document.getElementById('svc-capacity').value=s.capacity||1;
   document.getElementById('svc-waitlist').checked=s.waitlistEnabled!==false;
+  document.getElementById('svc-showteam').checked=s.showCoaches!==false;
   renderIntake(s.intakeQuestions||[]);
   document.getElementById('svc-active').checked=s.active!==false;
   renderCoachChecks(s.memberIds||[]);
@@ -589,7 +592,7 @@ function resetSvcForm(){
   ['svc-name','svc-desc','svc-intro','svc-image','svc-customloc'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('svc-dur').value=30; document.getElementById('svc-loc').value='jitsi';
   document.getElementById('svc-assign').value='choose'; document.getElementById('svc-active').checked=true;
-  document.getElementById('svc-capacity').value=1; document.getElementById('svc-waitlist').checked=true;
+  document.getElementById('svc-capacity').value=1; document.getElementById('svc-waitlist').checked=true; document.getElementById('svc-showteam').checked=true;
   renderIntake([]); renderCoachChecks([]);
   document.getElementById('svc-form-title').textContent='Add a service';
   document.getElementById('svc-save').textContent='Add service';

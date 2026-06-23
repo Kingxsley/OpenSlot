@@ -11,7 +11,7 @@
     + '.ej-brand:hover{color:var(--accent,#0F9D7A)}'
     + '.nav{position:relative}'
     + '#nav-links{display:flex;align-items:center;gap:22px}'
-    + '#nav-links a{white-space:nowrap;text-decoration:none;color:var(--ink,#15162a);font:600 14px Inter}'
+    + '#nav-links a{white-space:nowrap;text-decoration:none;color:inherit;font:600 14px Inter}'
     + '#nav-links a:hover{color:var(--accent,#0F9D7A)}'
     + '.nav-toggle{display:none;background:none;border:0;cursor:pointer;padding:8px;color:inherit}'
     + '.nav-toggle span{display:block;width:22px;height:2px;background:currentColor;margin:4px 0;border-radius:2px;transition:.2s}'

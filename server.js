@@ -597,6 +597,7 @@ app.post('/api/org/bookings/:id/reschedule', requireMember, requireOrgManager, a
   const b = await store.getBookingById(req.params.id);
   if (!b || b.accountId !== req.account.id) return res.status(404).json({ error: 'Booking not found.' });
   const startDate = new Date(start); if (isNaN(startDate)) return res.status(400).json({ error: 'Invalid time.' });
+  if (startDate.getTime() < Date.now()) return res.status(400).json({ error: 'Please choose a time in the future.' });
   const durationMs = new Date(b.end) - new Date(b.start);
   const endDate = new Date(startDate.getTime() + durationMs);
   if (await store.findClash(b.memberId, b.eventTypeId, startDate.getTime(), endDate.getTime())) return res.status(409).json({ error: 'That time is already taken.' });
@@ -696,7 +697,8 @@ function serviceFromBody(b, members) {
     // capacity 1 = a private 1:1 session; >1 = a group session with that many seats.
     capacity: Math.max(1, Math.min(500, parseInt(b.capacity, 10) || 1)),
     intakeQuestions: cleanIntake(b.intakeQuestions),
-    waitlistEnabled: b.waitlistEnabled !== false
+    waitlistEnabled: b.waitlistEnabled !== false,
+    showCoaches: b.showCoaches !== false
   };
 }
 // Shape a service for the org dashboard, with its coaches resolved.
@@ -916,7 +918,7 @@ app.get('/api/biz/:slug/services/:svcSlug', async (req, res) => {
   if (!s || !s.active) return res.status(404).json({ error: 'Service not found.' });
   const coaches = await activeCoaches(s);
   res.json({
-    service: { name: s.name, slug: s.slug, description: s.description, intro: s.intro || '', imageUrl: s.imageUrl || '', durationMins: s.durationMins, assignMode: s.assignMode, location: s.location, capacity: s.capacity || 1, isGroup: (s.capacity || 1) > 1, waitlistEnabled: s.waitlistEnabled !== false, intakeQuestions: s.intakeQuestions || [] },
+    service: { name: s.name, slug: s.slug, description: s.description, intro: s.intro || '', imageUrl: s.imageUrl || '', durationMins: s.durationMins, assignMode: s.assignMode, location: s.location, capacity: s.capacity || 1, isGroup: (s.capacity || 1) > 1, waitlistEnabled: s.waitlistEnabled !== false, showCoaches: s.showCoaches !== false, intakeQuestions: s.intakeQuestions || [] },
     coaches: coaches.map(coachCard), timezone: a.timezone, orgName: a.name
   });
 });
@@ -1027,6 +1029,7 @@ app.post('/api/manage/:id/:token/cancel', async (req, res) => {
 app.post('/api/manage/:id/:token/reschedule', async (req, res) => {
   const b = await loadManaged(req, res); if (!b) return;
   const startDate = new Date(req.body?.start); if (isNaN(startDate)) return res.status(400).json({ error: 'Invalid time.' });
+  if (startDate.getTime() < Date.now()) return res.status(400).json({ error: 'Please choose a time in the future.' });
   const durationMs = new Date(b.end) - new Date(b.start);
   const endDate = new Date(startDate.getTime() + durationMs);
   const others = (await store.listBookingsByMember(b.memberId)).filter(x => x.id !== b.id);

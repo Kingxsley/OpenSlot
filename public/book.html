@@ -68,7 +68,7 @@
     <div class="body" id="step-coaches" style="display:none">
       <button class="back" id="back-services" style="display:none">Other services</button>
       <div id="svc-intro" style="margin-bottom:14px"></div>
-      <span class="label">Our team for this service</span>
+      <span class="label" id="teamLabel">Our team for this service</span>
       <div id="coaches"></div>
       <button class="cta" id="to-times" style="margin-top:14px">See available times</button>
     </div>
@@ -87,6 +87,7 @@
       <div class="dates" id="dates"></div>
       <span class="label"><span id="lbl-times">Available times</span> <span id="tz" style="color:var(--muted);font-weight:400"></span></span>
       <div class="slots" id="slots"></div>
+      <div id="pick-extra"></div>
     </div>
     <div class="body" id="step-details" style="display:none">
       <button class="back" id="back">Change time</button>
@@ -175,10 +176,12 @@ async function startService(slug){
   document.getElementById('title').textContent=data.service.name;
   document.getElementById('dur').innerHTML=`<span class="dot"></span> ${data.service.durationMins} min`;
   document.getElementById('svc-intro').innerHTML=(data.service.intro?`<p style="color:var(--muted);font-size:14px;margin:0 0 8px">${esc(data.service.intro)}</p>`:'')+(data.service.description?`<p style="margin:0">${esc(data.service.description)}</p>`:'');
+  const showTeam = data.service.showCoaches !== false && (data.coaches||[]).length;
+  document.getElementById('teamLabel').style.display = showTeam ? '' : 'none';
   const cs=document.getElementById('coaches'); cs.innerHTML='';
-  (data.coaches||[]).forEach(c=>{
+  if(showTeam) (data.coaches||[]).forEach(c=>{
     const d=document.createElement('div'); d.className='pickrow'; d.style.cursor='default';
-    d.innerHTML=`${avatar(c.name,c.imageUrl)}<div><h3>${esc(c.name)}</h3><p>${c.title?esc(c.title):'Team member'}${c.bio?' · '+esc(c.bio):''}</p></div>`;
+    d.innerHTML=`${avatar(c.name,c.imageUrl)}<div><h3>${esc(c.name)}</h3><p>${esc(c.title||'')}${c.bio?(c.title?' · ':'')+esc(c.bio):''}</p></div>`;
     cs.appendChild(d);
   });
   document.getElementById('back-services').style.display = (cfg.hasServices)?'inline':'none';
@@ -187,7 +190,8 @@ async function startService(slug){
 document.getElementById('back-services').onclick=()=>{ MODE='member'; loadServices(); };
 document.getElementById('to-times').onclick=()=>{ startPick(); };
 async function loadServiceSlots(date){
-  const slotsEl=document.getElementById('slots'); slotsEl.innerHTML='<div class="skel"></div><div class="skel"></div><div class="skel"></div>';
+  document.getElementById('pick-extra').innerHTML='';
+  const slotsEl=document.getElementById('slots'); slotsEl.style.display=''; slotsEl.innerHTML='<div class="skel"></div><div class="skel"></div><div class="skel"></div>';
   try{
     const r=await fetch(`/api/biz/${ORG}/services/${SERVICE}/slots?date=${date}`); const data=await r.json(); if(!r.ok) throw new Error(data.error);
     document.getElementById('title').textContent=SERVICEDATA.service.name;
@@ -195,16 +199,18 @@ async function loadServiceSlots(date){
     document.getElementById('tz').textContent='· '+data.timezone;
     const isGroup=SERVICEDATA.service.isGroup;
     if(!data.slots.length){
-      slotsEl.innerHTML='<div class="empty" style="margin-bottom:10px">No times available this day. Try another'+(SERVICEDATA.service.waitlistEnabled?', or join the waitlist below.':'.')+'</div>';
-      if(SERVICEDATA.service.waitlistEnabled) renderWaitlist(date, slotsEl);
+      slotsEl.style.display='none';
+      var pe=document.getElementById('pick-extra');
+      pe.innerHTML='<div class="empty" style="margin-bottom:10px">No times available this day. Try another'+(SERVICEDATA.service.waitlistEnabled?', or join the waitlist below.':'.')+'</div>';
+      if(SERVICEDATA.service.waitlistEnabled) renderWaitlist(date, pe);
       return;
     }
     slotsEl.innerHTML=''; data.slots.forEach(s=>{ const b=document.createElement('button'); b.className='slot'; const sub=isGroup?`${s.seats} spot${s.seats===1?'':'s'} left`:`${s.coaches.length} available`; b.innerHTML=`${esc(s.label)}<span style="display:block;font-size:11px;opacity:.6">${sub}</span>`; b.onclick=()=>chooseServiceSlot(s); slotsEl.appendChild(b); });
   }catch(e){ slotsEl.innerHTML=`<div class="empty">${e.message||'Could not load times.'}</div>`; }
 }
 function renderWaitlist(date,container){
-  const box=document.createElement('div'); box.style.cssText='border:1px dashed var(--line);border-radius:12px;padding:14px;margin-top:8px';
-  box.innerHTML='<div style="font-weight:600;margin-bottom:8px">Join the waitlist</div><div class="field"><input id="wl-name" placeholder="Your name"></div><div class="field"><input id="wl-email" type="email" placeholder="Your email"></div><button class="cta" id="wl-join">Notify me if a spot opens</button><div class="err" id="wl-err"></div>';
+  const box=document.createElement('div'); box.style.cssText='border:1px dashed var(--line);border-radius:12px;padding:16px;margin-top:8px;max-width:340px';
+  box.innerHTML='<div style="font-weight:600;margin-bottom:10px">Join the waitlist</div><div class="field"><input id="wl-name" placeholder="Your name" style="width:100%"></div><div class="field"><input id="wl-email" type="email" placeholder="Your email" style="width:100%"></div><button class="cta" id="wl-join" style="width:100%">Notify me if a spot opens</button><div class="err" id="wl-err"></div>';
   container.appendChild(box);
   document.getElementById('wl-join').onclick=async()=>{
     const err=document.getElementById('wl-err'); err.textContent='';
@@ -234,9 +240,14 @@ function chooseServiceSlot(slot){
   const mode=SERVICEDATA.service.assignMode;
   // If several coaches are free and the service lets the visitor choose, ask who.
   if(mode==='choose' && slot.coaches.length>1){
-    const slotsEl=document.getElementById('slots');
-    slotsEl.innerHTML=`<div class="empty" style="margin-bottom:8px">${esc(slot.label)} — choose who with:</div>`;
-    slot.coaches.forEach(c=>{ const d=document.createElement('div'); d.className='pickrow'; d.innerHTML=`${avatar(c.name,c.imageUrl)}<div><h3>${esc(c.name)}</h3><p>${c.title?esc(c.title):'Available'}</p></div>`; d.onclick=()=>{ chosenCoach=c; goServiceDetails(slot,c); }; slotsEl.appendChild(d); });
+    document.getElementById('slots').style.display='none';
+    const pe=document.getElementById('pick-extra'); pe.innerHTML='';
+    const back=document.createElement('button'); back.className='back'; back.textContent='← Back to times';
+    back.onclick=()=>{ document.getElementById('slots').style.display=''; pe.innerHTML=''; };
+    pe.appendChild(back);
+    const head=document.createElement('div'); head.className='label'; head.style.marginTop='6px'; head.textContent=slot.label+' — choose who with:';
+    pe.appendChild(head);
+    slot.coaches.forEach(c=>{ const d=document.createElement('div'); d.className='pickrow'; d.innerHTML=`${avatar(c.name,c.imageUrl)}<div><h3>${esc(c.name)}</h3><p>${esc(c.title||'Available')}</p></div>`; d.onclick=()=>{ chosenCoach=c; goServiceDetails(slot,c); }; pe.appendChild(d); });
     return;
   }
   // Otherwise auto-assign (the server picks among those free).
@@ -282,9 +293,14 @@ async function startTypes(){
   });
   show('types');
 }
-document.getElementById('back-types').onclick=()=>{ EVSLUG=null; startTypes(); };
+document.getElementById('back-types').onclick=()=>{ if(MODE==='service'){ show('coaches'); } else { EVSLUG=null; startTypes(); } };
 
-function startPick(){ show('pick'); buildDates(); }
+function startPick(){
+  // Show a Back control: to the coaches list (service mode) or meeting types (member mode).
+  var bt=document.getElementById('back-types');
+  if(MODE==='service'){ bt.textContent='← Back'; bt.style.display='inline'; }
+  show('pick'); buildDates();
+}
 function loadSlotsFor(iso){ return MODE==='service'? loadServiceSlots(iso) : loadSlots(iso); }
 function buildDates(){
   const el=document.getElementById('dates'); el.innerHTML=''; const today=new Date();
