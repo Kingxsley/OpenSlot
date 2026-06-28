@@ -450,8 +450,10 @@ function render(){
   const lp=document.getElementById('links');
   if(a.status==='approved'){
     lp.innerHTML=`<p style="margin:0 0 10px"><a href="${STATE.bookingUrl}" target="_blank" style="font-weight:600">${STATE.bookingUrl}</a></p>
-      <label>Embed on any website</label>
-      <div class="embed">&lt;script src="${location.origin}/embed.js" data-org="${a.slug}" data-member="${m.slug}" data-color="${a.brandColor}" data-label="Book a time"&gt;&lt;/script&gt;</div>`;
+      <label>Embed a button on any website <span class="sub" style="font-weight:400">(opens the booking page in a popup)</span></label>
+      <div class="embed">&lt;script src="${location.origin}/embed.js" data-org="${a.slug}" data-color="${a.brandColor}" data-label="Book a time"&gt;&lt;/script&gt;</div>
+      <label style="margin-top:12px">Embed inline on your own /book page <span class="sub" style="font-weight:400">(renders the booking page in place, your URL stays the same)</span></label>
+      <div class="embed">&lt;script src="${location.origin}/embed.js" data-org="${a.slug}" data-mode="inline" data-height="780"&gt;&lt;/script&gt;</div>`;
     document.getElementById('linksPanel').style.opacity='1';
   } else { lp.innerHTML='<p class="sub" style="margin:0">Your booking link activates once your organisation is verified.</p>'; document.getElementById('linksPanel').style.opacity='.6'; }
 

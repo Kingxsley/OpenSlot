@@ -1714,7 +1714,36 @@ app.get('/api/console/calendar', requireSuperAdmin, async (_req, res) => {
 // ================= EMBED + PAGES =================
 app.get('/embed.js', (_req, res) => {
   res.setHeader('Content-Type', 'application/javascript');
-  res.send(`(function(){var s=document.currentScript,org=s.getAttribute('data-org')||'',m=s.getAttribute('data-member')||'',ev=s.getAttribute('data-event')||'',color=s.getAttribute('data-color')||'#0F9D7A',label=s.getAttribute('data-label')||'Book a time',base=new URL(s.src).origin;var b=document.createElement('button');b.textContent=label;b.style.cssText='background:'+color+';color:#fff;border:0;border-radius:10px;padding:12px 20px;font:600 15px system-ui,sans-serif;cursor:pointer';var ov=document.createElement('div');ov.style.cssText='display:none;position:fixed;inset:0;background:rgba(10,12,20,.55);z-index:99999;align-items:center;justify-content:center;padding:16px';var fr=document.createElement('iframe');fr.src=base+'/book/'+org+(m?'/'+m:'')+(ev?'/'+ev:'')+'?embed=1';fr.style.cssText='width:100%;max-width:480px;height:640px;max-height:90vh;border:0;border-radius:16px;background:#fff';ov.appendChild(fr);ov.addEventListener('click',function(e){if(e.target===ov)ov.style.display='none'});b.addEventListener('click',function(){ov.style.display='flex'});function mt(){document.body.appendChild(ov)}if(document.body)mt();else document.addEventListener('DOMContentLoaded',mt);s.parentNode.insertBefore(b,s);})();`);
+  // Two modes:
+  //   default        -> a button that opens the booking page in a modal
+  //   data-mode=inline -> the booking page rendered directly in the page (drop-in
+  //                       replacement for an existing /book page; the visitor's URL
+  //                       never leaves the host site)
+  res.send(`(function(){
+  var s=document.currentScript;
+  var org=s.getAttribute('data-org')||'',m=s.getAttribute('data-member')||'',ev=s.getAttribute('data-event')||'';
+  var color=s.getAttribute('data-color')||'#0F9D7A',label=s.getAttribute('data-label')||'Book a time';
+  var mode=s.getAttribute('data-mode')||'button';
+  var height=s.getAttribute('data-height')||'760';
+  var maxw=s.getAttribute('data-max-width')||(mode==='inline'?'620':'480');
+  var base=new URL(s.src).origin;
+  var src=base+'/book/'+org+(m?'/'+m:'')+(ev?'/'+ev:'')+'?embed=1';
+  function iframe(css){var fr=document.createElement('iframe');fr.src=src;fr.setAttribute('title','Booking');fr.setAttribute('loading','lazy');fr.style.cssText=css;return fr;}
+  if(mode==='inline'){
+    var fr=iframe('width:100%;max-width:'+maxw+'px;height:'+height+'px;border:0;border-radius:16px;background:#fff;display:block;margin:0 auto');
+    s.parentNode.insertBefore(fr,s);
+    return;
+  }
+  var b=document.createElement('button');b.type='button';b.textContent=label;
+  b.style.cssText='background:'+color+';color:#fff;border:0;border-radius:10px;padding:12px 20px;font:600 15px system-ui,sans-serif;cursor:pointer';
+  var ov=document.createElement('div');ov.style.cssText='display:none;position:fixed;inset:0;background:rgba(10,12,20,.55);z-index:99999;align-items:center;justify-content:center;padding:16px';
+  var fr=iframe('width:100%;max-width:'+maxw+'px;height:'+height+'px;max-height:90vh;border:0;border-radius:16px;background:#fff');
+  ov.appendChild(fr);
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.style.display='none';});
+  b.addEventListener('click',function(){ov.style.display='flex';});
+  function mt(){document.body.appendChild(ov);}if(document.body)mt();else document.addEventListener('DOMContentLoaded',mt);
+  s.parentNode.insertBefore(b,s);
+})();`);
 });
 
 // Tells the booking page which org it's serving when reached via a custom host.
