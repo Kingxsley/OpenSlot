@@ -47,6 +47,14 @@
     <div class="feat"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><h3>Private by design</h3><p>No tracking, your data.</p></div>
   </div>
 
+  <div id="pick-view" class="panel hidden" style="margin-bottom:14px">
+    <h2 style="margin:0 0 4px;font:700 20px 'Space Grotesk'">Book your demo</h2>
+    <p style="color:var(--muted);font-size:14px;margin:0 0 12px">Pick a time that suits you. <span id="pick-tz"></span></p>
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px" id="pick-dates"></div>
+    <div id="pick-slots" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-top:12px"></div>
+    <div id="pick-chosen" style="margin-top:12px;font-weight:600"></div>
+  </div>
+
   <div id="form-view" class="panel">
     <h2 style="margin:0 0 16px;font:700 20px 'Space Grotesk'" data-edit="formHead">Request a demo</h2>
     <div class="row"><div><label>Your name</label><input id="d-name" placeholder="Contact person"></div><div><label>Email</label><input id="d-email" type="email" placeholder="you@org.org"></div></div>
@@ -67,18 +75,58 @@
   </div>
 </div>
 <script>
+var BOOKING=false, chosenStart=null;
+const VTZ=(function(){try{return Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';}catch(e){return 'UTC';}})();
+function fmtTime(iso){ return new Date(iso).toLocaleTimeString([],{hour:'numeric',minute:'2-digit',hour12:true,timeZone:VTZ}); }
+function fmtDay(iso){ return new Date(iso).toLocaleDateString([],{weekday:'long',day:'numeric',month:'long',timeZone:VTZ}); }
+// If the team has published demo availability, offer a real time picker.
+fetch('/api/demo/config').then(function(r){return r.json();}).then(function(c){
+  if(!c||!c.enabled) return;
+  BOOKING=true;
+  document.getElementById('pick-view').classList.remove('hidden');
+  document.getElementById('pick-tz').textContent='Times shown in '+VTZ+'.';
+  document.getElementById('formHead').textContent='Your details';
+  document.getElementById('d-submit').textContent='Confirm demo booking';
+  document.getElementById('d-msg').parentNode.querySelector('label').textContent='Anything you would like us to cover? (optional)';
+  buildDates();
+}).catch(function(){});
+function buildDates(){
+  var el=document.getElementById('pick-dates'); el.innerHTML=''; var today=new Date();
+  for(var i=0;i<14;i++){ var d=new Date(today); d.setDate(today.getDate()+i); var iso=d.toISOString().slice(0,10);
+    var b=document.createElement('button'); b.type='button'; b.style.cssText='flex:0 0 auto;min-width:58px;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px;cursor:pointer;text-align:center;color:var(--ink)';
+    b.innerHTML='<div style="font-size:11px;color:var(--muted)">'+d.toLocaleDateString([],{weekday:'short'})+'</div><div style="font-weight:700">'+d.getDate()+'</div>';
+    b.onclick=(function(iso,btn){return function(){ Array.prototype.forEach.call(el.children,function(x){x.style.borderColor='var(--line)';}); btn.style.borderColor='var(--accent)'; loadDemoSlots(iso); };})(iso,b);
+    el.appendChild(b); if(i===0){ b.style.borderColor='var(--accent)'; loadDemoSlots(iso); }
+  }
+}
+function loadDemoSlots(date){
+  var sl=document.getElementById('pick-slots'); sl.innerHTML='<span style="color:var(--muted);font-size:13px">Loading…</span>';
+  fetch('/api/demo/slots?date='+date).then(function(r){return r.json();}).then(function(data){
+    if(!data.slots||!data.slots.length){ sl.innerHTML='<span style="color:var(--muted);font-size:13px">No times this day. Try another.</span>'; return; }
+    sl.innerHTML=''; data.slots.forEach(function(s){ var b=document.createElement('button'); b.type='button'; b.textContent=fmtTime(s.start);
+      b.style.cssText='border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px 6px;font:600 14px Inter;cursor:pointer;color:var(--ink)';
+      b.onclick=function(){ chosenStart=s.start; Array.prototype.forEach.call(sl.children,function(x){x.style.borderColor='var(--line)';x.style.color='var(--ink)';}); b.style.borderColor='var(--accent)'; b.style.color='var(--accent)';
+        document.getElementById('pick-chosen').textContent='Selected: '+fmtTime(s.start)+', '+fmtDay(s.start); };
+      sl.appendChild(b); });
+  }).catch(function(){ sl.innerHTML='<span style="color:var(--muted);font-size:13px">Could not load times.</span>'; });
+}
 document.getElementById('d-submit').onclick=async()=>{
   const name=document.getElementById('d-name').value.trim(), email=document.getElementById('d-email').value.trim();
   const org=document.getElementById('d-org').value.trim(), message=document.getElementById('d-msg').value.trim();
   const err=document.getElementById('d-err'); err.textContent='';
   if(!name||!email){ err.textContent='Please add your name and email.'; return; }
-  const btn=document.getElementById('d-submit'); btn.disabled=true; btn.textContent='Sending…';
+  if(BOOKING && !chosenStart){ err.textContent='Please pick a time above.'; return; }
+  const btn=document.getElementById('d-submit'); const orig=btn.textContent; btn.disabled=true; btn.textContent='Sending…';
   try{
-    const r=await fetch('/api/demo-request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,org,message})});
+    var url=BOOKING?'/api/demo/book':'/api/demo-request';
+    var payload=BOOKING?{name,email,org,notes:message,start:chosenStart}:{name,email,org,message};
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const d=await r.json(); if(!r.ok) throw new Error(d.error);
+    document.getElementById('pick-view').classList.add('hidden');
     document.getElementById('form-view').classList.add('hidden');
+    if(BOOKING){ document.querySelector('#done-view h2').textContent='Demo booked'; document.querySelector('#done-view p').textContent='Your demo is confirmed for '+d.when+'. Check your inbox for the joining link.'; }
     document.getElementById('done-view').classList.remove('hidden');
-  }catch(e){ err.textContent=e.message; btn.disabled=false; btn.textContent='Request a demo'; }
+  }catch(e){ err.textContent=e.message; btn.disabled=false; btn.textContent=orig; }
 };
 </script>
 <script src="/nav.js"></script>

@@ -202,6 +202,20 @@ async function run() {
   ok((await api('/api/console/legal-versions/privacy/2', { method: 'DELETE', token: CO })).status === 200, 'delete a legal version');
   ok((await api('/api/console/legal-versions/privacy', { token: CO })).data.length === 2, 'deleted version is removed from history');
 
+  // ---- super admin calendar + demo booking ----
+  ok((await api('/api/console/demo-config', { method: 'PUT', token: SAT, body: { enabled: true, durationMins: 30, timezone: 'Etc/UTC', availability: { 1: [{ start: '09:00', end: '17:00' }] } } })).status === 200, 'super admin enables demo booking');
+  ok((await api('/api/demo/config')).data.enabled === true, 'public demo config shows enabled');
+  ok((await api('/api/console/demo-config', { token: ON2 })).status === 403, 'demo config is super-admin only');
+  const dmon = nextMonday();
+  const dslots = (await api('/api/demo/slots?date=' + dmon)).data;
+  ok((dslots.slots || []).length > 0, 'demo slots available');
+  const dbk = await api('/api/demo/book', { method: 'POST', body: { name: 'Dee', email: 'dee@example.org', org: 'D Org', start: dslots.slots[0].start } });
+  ok(dbk.data.when && dbk.data.manageUrl, 'demo booking confirmed with manage link');
+  ok((await api('/api/demo/book', { method: 'POST', body: { name: 'Z', email: 'z@z.com', start: dslots.slots[0].start } })).status === 409, 'demo slot cannot be double-booked');
+  ok((await api('/api/demo/book', { method: 'POST', body: { name: 'X', email: 'x@y.com', start: new Date(Date.now() - 86400000).toISOString() } })).status === 400, 'demo cannot book a past time');
+  ok((await api('/api/console/calendar', { token: SAT })).data.sessions.some(s => s.demo), 'super admin calendar shows the demo session');
+  ok((await api('/api/console/calendar', { token: ON2 })).status === 403, 'calendar is super-admin only');
+
   // ---- reports + timezone + demo + ask-to-reschedule ----
   const rep = await api('/api/org/report', { token: ADMIN });
   ok(rep.status === 200 && rep.data.summary && Array.isArray(rep.data.bookings), 'org bookings report returns summary + rows');

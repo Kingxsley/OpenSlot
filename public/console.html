@@ -90,6 +90,7 @@
     <button class="tab" data-t="design" data-roles="superadmin,content">Design</button>
     <button class="tab" data-t="admins" data-roles="superadmin">Admins</button>
     <button class="tab" data-t="limits" data-roles="superadmin">Organisations</button>
+    <button class="tab" data-t="calendar" data-roles="superadmin">Calendar</button>
     <button class="tab" data-t="reports" data-roles="superadmin">Reports</button>
     <button class="tab" data-t="emails" data-roles="superadmin">Emails</button>
     <button class="tab" data-t="security" data-roles="superadmin">Security</button>
@@ -100,6 +101,7 @@
   <div id="design" class="hide"></div>
   <div id="admins" class="hide"></div>
   <div id="limits" class="hide"></div>
+  <div id="calendar" class="hide"></div>
   <div id="reports" class="hide"></div>
   <div id="emails" class="hide"></div>
   <div id="security" class="hide"></div>
@@ -171,9 +173,9 @@ function showApp(){document.getElementById('loginView').classList.add('hide');do
 }
 function openTab(t){
   document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')});t.classList.add('on');
-  ['apps','members','logs','design','admins','limits','reports','emails','security'].forEach(function(id){document.getElementById(id).classList.add('hide');});
+  ['apps','members','logs','design','admins','limits','calendar','reports','emails','security'].forEach(function(id){document.getElementById(id).classList.add('hide');});
   var sel=t.dataset.t;document.getElementById(sel).classList.remove('hide');
-  ({apps:loadApps,members:loadMembers,logs:loadLogs,design:loadDesign,admins:loadAdmins,limits:loadLimits,reports:loadReports,emails:loadEmails,security:loadSecurity}[sel]||function(){})();
+  ({apps:loadApps,members:loadMembers,logs:loadLogs,design:loadDesign,admins:loadAdmins,limits:loadLimits,calendar:loadCalendar,reports:loadReports,emails:loadEmails,security:loadSecurity}[sel]||function(){})();
 }
 
 document.getElementById('lbtn').onclick=function(){
@@ -490,6 +492,45 @@ window.memAccess=function(mid,action,oid){ fetch('/api/console/member/'+mid+'/'+
 window.memUnlock2=function(mid,oid){ fetch('/api/console/member/'+mid+'/unlock',{method:'POST',headers:H()}).then(function(){ reopenMembers(oid); }); };
 window.memReset2=function(mid,oid){ appConfirm({title:'Force password reset',message:'Require this member to reset their password? They will be emailed a reset link.',confirmText:'Force reset'}).then(function(ok){ if(!ok)return; fetch('/api/console/member/'+mid+'/force-reset',{method:'POST',headers:H()}).then(function(){ reopenMembers(oid); }); }); };
 window.saveLimits=function(){ fetch('/api/console/limits',{method:'PUT',headers:H(),body:JSON.stringify({globalMax:document.getElementById('gmax').value,orgDefault:document.getElementById('odef').value})}).then(loadLimits); };
+
+// ================= CALENDAR + DEMO AVAILABILITY =================
+var DAYNAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+function loadCalendar(){
+  Promise.all([
+    fetch('/api/console/demo-config',{headers:H()}).then(function(r){return r.json();}),
+    fetch('/api/console/calendar',{headers:H()}).then(function(r){return r.json();})
+  ]).then(function(res){ renderCalendar(res[0],res[1].sessions||[]); }).catch(function(){showLogin();});
+}
+function renderCalendar(cfg,sessions){
+  var av=cfg.availability||{};
+  var rows=DAYNAMES.map(function(dn,i){ var w=(av[i]||[])[0]||{start:'',end:''};
+    return '<div class="lim"><span style="width:90px;display:inline-block">'+dn+'</span><input type="time" id="da-s-'+i+'" value="'+attr(w.start)+'"><input type="time" id="da-e-'+i+'" value="'+attr(w.end)+'"></div>';
+  }).join('');
+  var settings='<div class="card"><h3 style="margin:0 0 4px;font:600 16px Space Grotesk">Demo availability</h3>'+
+    '<p class="meta">Turn this on to let visitors book a demo with you directly from the demo page. Your open hours below are offered as slots; visitors see them in their own timezone.</p>'+
+    '<label style="display:block;margin:8px 0;font:500 14px Inter"><input type="checkbox" id="da-enabled" '+(cfg.enabled?'checked':'')+' style="width:auto;margin-right:8px;vertical-align:-1px">Enable demo booking</label>'+
+    '<div class="lim">Session length: <input type="number" min="10" max="240" id="da-dur" value="'+(cfg.durationMins||30)+'" style="width:80px"> minutes</div>'+
+    '<div class="lim">Your timezone: <input id="da-tz" value="'+attr(cfg.timezone||'')+'" placeholder="e.g. Australia/Melbourne" style="width:220px"> <button class="ghost" type="button" onclick="document.getElementById(\'da-tz\').value=Intl.DateTimeFormat().resolvedOptions().timeZone">Detect</button></div>'+
+    '<div style="margin:10px 0 4px;font:600 13px Inter">Weekly hours <span class="meta">(leave blank for a day off)</span></div>'+rows+
+    '<div class="lim" style="margin-top:10px"><button class="go" onclick="saveDemoConfig()">Save availability</button><span class="err" id="da-msg" style="margin:0"></span></div></div>';
+  // agenda grouped by day
+  var now=Date.now();
+  var groups={}; sessions.forEach(function(s){ var k=new Date(s.start).toLocaleDateString([],{weekday:'long',day:'numeric',month:'long'}); (groups[k]=groups[k]||[]).push(s); });
+  var agenda=Object.keys(groups).map(function(day){
+    var items=groups[day].map(function(s){ var soon=(new Date(s.start).getTime()-now)<4*3600*1000 && new Date(s.start).getTime()>now;
+      var time=new Date(s.start).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+      return '<div class="row" style="padding:8px 0;border-top:1px solid var(--line)"><div><b>'+esc(time)+'</b> '+esc(s.title)+(soon?' <span class="badge b-pending">soon</span>':'')+(s.demo?' <span class="badge b-approved">demo</span>':'')+'<div class="meta">'+esc(s.org)+(s.who?' · with '+esc(s.who):'')+' · booked by '+esc(s.booker||'')+' '+esc(s.bookerEmail||'')+'</div></div></div>';
+    }).join('');
+    return '<div style="margin-top:10px"><div style="font:600 14px Inter;color:var(--muted)">'+esc(day)+'</div>'+items+'</div>';
+  }).join('');
+  var cal='<div class="card"><h3 style="margin:0 0 4px;font:600 16px Space Grotesk">Upcoming sessions</h3><p class="meta">Demos and every organisation\'s upcoming bookings. Sessions starting within 4 hours are flagged.</p>'+(agenda||'<p class="meta">Nothing upcoming.</p>')+'</div>';
+  document.getElementById('calendar').innerHTML=settings+cal;
+}
+window.saveDemoConfig=function(){
+  var av={}; for(var i=0;i<7;i++){ var s=document.getElementById('da-s-'+i).value, e=document.getElementById('da-e-'+i).value; av[i]=(s&&e)?[{start:s,end:e}]:[]; }
+  var body={ enabled:document.getElementById('da-enabled').checked, durationMins:document.getElementById('da-dur').value, timezone:document.getElementById('da-tz').value.trim(), availability:av };
+  fetch('/api/console/demo-config',{method:'PUT',headers:H(),body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(){ var m=document.getElementById('da-msg'); m.style.color='var(--accent)'; m.textContent='Saved.'; });
+};
 
 // ================= REPORTS (all bookings) =================
 var reportData=null, reportState={filter:'',org:'',q:'',page:1,pageSize:50};

@@ -1641,6 +1641,76 @@ app.post('/api/demo-request', signupLimiter, async (req, res) => {
   res.json({ ok: true, emailed: emailEnabled() });
 });
 
+// ================= DEMO BOOKING + SUPER-ADMIN CALENDAR =================
+// Super admins can publish their availability so visitors book a demo directly.
+// Demo bookings live in the bookings collection under a synthetic owner so they
+// reuse slots, reminders, and the self-manage page.
+const DEMO_OWNER = '__demo__', PLATFORM_ACCT = '__platform__';
+const DEMO_AVAIL_DEFAULT = { 0: [], 1: [{ start: '09:00', end: '17:00' }], 2: [{ start: '09:00', end: '17:00' }], 3: [{ start: '09:00', end: '17:00' }], 4: [{ start: '09:00', end: '17:00' }], 5: [{ start: '09:00', end: '17:00' }], 6: [] };
+async function getDemoConfig() {
+  const c = (await store.getPage('demoConfig')) || {};
+  return { enabled: !!c.enabled, durationMins: c.durationMins || 30, timezone: c.timezone || 'Etc/UTC', availability: c.availability || DEMO_AVAIL_DEFAULT };
+}
+app.get('/api/console/demo-config', requireSuperAdmin, async (_req, res) => res.json(await getDemoConfig()));
+app.put('/api/console/demo-config', requireSuperAdmin, async (req, res) => {
+  const b = req.body || {};
+  const cfg = {
+    enabled: !!b.enabled,
+    durationMins: Math.max(10, Math.min(240, parseInt(b.durationMins, 10) || 30)),
+    timezone: cleanTimezone(b.timezone) || 'Etc/UTC',
+    availability: (b.availability && typeof b.availability === 'object') ? b.availability : DEMO_AVAIL_DEFAULT
+  };
+  await store.setPage('demoConfig', cfg);
+  await audit(req, 'demo.config', { actor: req.console.email, text: cfg.enabled ? 'enabled' : 'disabled' });
+  res.json({ ok: true, config: cfg });
+});
+// Public: is demo booking on, and its slots/booking.
+app.get('/api/demo/config', async (_req, res) => { const c = await getDemoConfig(); res.json({ enabled: c.enabled, durationMins: c.durationMins, timezone: c.timezone }); });
+app.get('/api/demo/slots', async (req, res) => {
+  const c = await getDemoConfig(); if (!c.enabled) return res.status(404).json({ error: 'Demo booking is not available.' });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '')) return res.status(400).json({ error: 'Pass ?date=YYYY-MM-DD' });
+  const booked = (await store.listBookingsByMember(DEMO_OWNER)).filter(b => b.status !== 'cancelled');
+  const slots = slotsForDate({ dateStr: req.query.date, durationMins: c.durationMins, timeZone: c.timezone, availability: c.availability, bookedRanges: booked });
+  res.json({ durationMins: c.durationMins, timezone: c.timezone, slots });
+});
+app.post('/api/demo/book', signupLimiter, async (req, res) => {
+  const c = await getDemoConfig(); if (!c.enabled) return res.status(404).json({ error: 'Demo booking is not available.' });
+  const name = String(req.body?.name || '').slice(0, 120).trim(), email = String(req.body?.email || '').slice(0, 200).trim();
+  const org = String(req.body?.org || '').slice(0, 160).trim(), notes = String(req.body?.notes || '').slice(0, 2000).trim();
+  const start = req.body?.start;
+  if (!name || !email.includes('@') || !start) return res.status(400).json({ error: 'Name, email and a time are required.' });
+  const startDate = new Date(start); if (isNaN(startDate)) return res.status(400).json({ error: 'Invalid time.' });
+  if (startDate.getTime() < Date.now()) return res.status(400).json({ error: 'Please pick a future time.' });
+  const endDate = new Date(startDate.getTime() + c.durationMins * 60000);
+  const booked = await store.listBookingsByMember(DEMO_OWNER);
+  if (bookingOverlaps(booked, startDate.getTime(), endDate.getTime())) return res.status(409).json({ error: 'That time was just taken. Please pick another.' });
+  const tmpId = crypto.randomBytes(6).toString('hex');
+  const jitsiUrl = `https://${JITSI_DOMAIN}/enjeeoh-demo-${tmpId}` + (JITSI_E2EE ? '#config.e2ee.enabled=true&config.disableAudioLevels=true' : '');
+  const booking = await store.createBooking(PLATFORM_ACCT, DEMO_OWNER, {
+    demo: true, title: 'Enjeeoh demo', serviceName: 'Demo', memberName: 'Enjeeoh team', name, email,
+    phone: String(req.body?.phone || '').slice(0, 40), notes, org, manageToken: crypto.randomBytes(16).toString('hex'),
+    start: startDate.toISOString(), end: endDate.toISOString(), locationText: jitsiUrl
+  });
+  const when = new Intl.DateTimeFormat('en-AU', { timeZone: c.timezone, weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit', hour12: true }).format(startDate);
+  const manageUrl = `${baseUrl(req)}/manage/${booking.id}/${booking.manageToken}`;
+  const teamTo = process.env.REVIEW_NOTIFY_EMAIL || SUPERADMIN_EMAIL;
+  if (emailEnabled()) {
+    sendEmail({ to: email, subject: `Your Enjeeoh demo is booked for ${when}`, html: `<p>Hi ${name},</p><p>Thank you for booking a demo of Enjeeoh. Your session is confirmed for <b>${when}</b>.</p><p>When the time comes, join here: <a href="${jitsiUrl}">${jitsiUrl}</a></p><p>Need to change it? <a href="${manageUrl}">Reschedule or cancel</a>.</p><p>We look forward to speaking with you.</p>` });
+    if (teamTo) sendEmail({ to: teamTo, subject: `New demo booked: ${org || name} on ${when}`, html: `<p>${name} (${email})${org ? ` from ${org}` : ''} booked a demo for ${when}.</p>${notes ? `<p>Notes: ${notes}</p>` : ''}<p>${jitsiUrl}</p>` });
+  }
+  await audit(req, 'demo.booked', { actor: email, text: (org || name) + ' ' + when });
+  res.json({ ok: true, when, locationText: jitsiUrl, manageUrl });
+});
+// Super-admin calendar: upcoming sessions across the platform (demos + all orgs).
+app.get('/api/console/calendar', requireSuperAdmin, async (_req, res) => {
+  const now = Date.now();
+  const accounts = await store.listAllAccounts(); const byId = Object.fromEntries(accounts.map(a => [a.id, a.name]));
+  const all = (await store.listAllBookings()).filter(b => b.status !== 'cancelled' && new Date(b.start).getTime() > now - 2 * 3600 * 1000);
+  const sessions = all.map(b => ({ id: b.id, title: b.serviceName || b.title, start: b.start, who: b.memberName, booker: b.name, bookerEmail: b.email, org: b.demo ? 'Demo request' : (byId[b.accountId] || ''), demo: !!b.demo }))
+    .sort((a, b) => new Date(a.start) - new Date(b.start));
+  res.json({ sessions });
+});
+
 // ================= EMBED + PAGES =================
 app.get('/embed.js', (_req, res) => {
   res.setHeader('Content-Type', 'application/javascript');
