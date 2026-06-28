@@ -283,6 +283,11 @@ async function run() {
   ok((await api(`/api/biz/${oslug}/services/coaching/bookings`, { method: 'POST', body: { start: oas[0].start, name: 'Once', email: 'once@example.org' } })).status === 200, 'first booking allowed');
   ok((await api(`/api/biz/${oslug}/services/coaching/bookings`, { method: 'POST', body: { start: oas[4].start, name: 'Once', email: 'once@example.org' } })).status === 409, 'second active booking blocked for same email');
   ok((await api(`/api/biz/${oslug}/services/coaching/bookings`, { method: 'POST', body: { start: oas[4].start, name: 'Two', email: 'two@example.org' } })).status === 200, 'a different email can still book a non-overlapping slot');
+  // org-wide one-active rule blocks a second booking even on a different (per-service off) service
+  await api('/api/org/services/' + svc.data.service.id, { method: 'PUT', token: ADMIN, body: { oneActivePerEmail: false } });
+  await api('/api/org/settings', { method: 'PUT', token: ADMIN, body: { oneBookingOrgWide: true } });
+  ok((await api(`/api/biz/${oslug}/services/coaching/bookings`, { method: 'POST', body: { start: oas[8].start, name: 'Once', email: 'once@example.org' } })).status === 409, 'org-wide limit blocks an already-booked person');
+  await api('/api/org/settings', { method: 'PUT', token: ADMIN, body: { oneBookingOrgWide: false } });
 
   ok((await api('/api/org/services/' + svc.data.service.id, { method: 'DELETE', token: ADMIN })).status === 200, 'org admin deletes a service');
 

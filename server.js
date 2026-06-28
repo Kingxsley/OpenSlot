@@ -525,7 +525,7 @@ app.get('/api/me', requireMember, async (req, res) => {
   const [eventTypes, bookings] = await Promise.all([store.listEventTypesByMember(m.id), store.listBookingsByMember(m.id)]);
   const out = {
     member: { id: m.id, name: m.name, email: m.email, slug: m.slug, role: m.role, availability: m.availability, blockedDates: m.blockedDates || [], mfaEnabled: !!m.mfaEnabled, bio: m.bio || '', title: m.title || '', imageUrl: m.imageUrl || '', timezone: m.timezone || '' },
-    account: { slug: a.slug, name: a.name, status: a.status, reviewNote: a.reviewNote, brandColor: a.brandColor, timezone: a.timezone, memberSelfManage: a.memberSelfManage, website: a.website, bookingPage: a.bookingPage || {} },
+    account: { slug: a.slug, name: a.name, status: a.status, reviewNote: a.reviewNote, brandColor: a.brandColor, timezone: a.timezone, memberSelfManage: a.memberSelfManage, website: a.website, bookingPage: a.bookingPage || {}, oneBookingOrgWide: !!a.oneBookingOrgWide },
     canManageOwnEvents: canManageOwnEvents(m, a),
     eventTypes,
     bookings: bookings.sort((x, y) => new Date(y.start) - new Date(x.start)),
@@ -687,6 +687,7 @@ function cleanBookingPage(input) {
 app.put('/api/org/settings', requireMember, requireOrgAdmin, async (req, res) => {
   const allowed = ['name', 'brandColor', 'timezone', 'branding', 'website', 'memberSelfManage', 'customDomain'];
   const patch = {}; for (const k of allowed) if (k in (req.body || {})) patch[k] = req.body[k];
+  if ('oneBookingOrgWide' in (req.body || {})) patch.oneBookingOrgWide = !!req.body.oneBookingOrgWide;
   if (req.body && typeof req.body.bookingPage === 'object') patch.bookingPage = cleanBookingPage(req.body.bookingPage);
   const a = await store.updateAccount(req.account.id, patch);
   res.json({ ok: true, account: { name: a.name, brandColor: a.brandColor, timezone: a.timezone, memberSelfManage: a.memberSelfManage } });
@@ -914,6 +915,7 @@ app.post('/api/biz/:slug/m/:mslug/bookings', async (req, res) => {
   const startDate = new Date(start); if (isNaN(startDate)) return res.status(400).json({ error: 'Invalid time.' });
   const endDate = new Date(startDate.getTime() + ev.durationMins * 60000);
   if (await store.findClash(m.id, ev.id, startDate.getTime(), endDate.getTime())) return res.status(409).json({ error: 'Sorry, that time was just taken. Please pick another.' });
+  const limitMsg = await oneActiveConflict(a, null, email); if (limitMsg) return res.status(409).json({ error: limitMsg });
 
   const tmpId = crypto.randomBytes(6).toString('hex');
   const jitsiUrl = `https://${JITSI_DOMAIN}/enjeeoh-${a.slug}-${tmpId}` + (JITSI_E2EE ? '#config.e2ee.enabled=true&config.disableAudioLevels=true' : '');
@@ -940,6 +942,22 @@ app.get('/api/bookings/:id/ics', async (req, res) => {
 // combined availability of all its coaches, picks a time, and (optionally) a coach.
 function bookingOverlaps(bookings, startMs, endMs) {
   return bookings.some(b => b.status !== 'cancelled' && startMs < new Date(b.end).getTime() && endMs > new Date(b.start).getTime());
+}
+// "One active booking" rule. Returns a message to show if the booking should be
+// blocked, otherwise null. Org-wide (account.oneBookingOrgWide) covers every service;
+// per-service (service.oneActivePerEmail) covers just that service.
+async function oneActiveConflict(account, service, email) {
+  const wantOrg = !!account.oneBookingOrgWide;
+  const wantSvc = !!(service && service.oneActivePerEmail);
+  if (!wantOrg && !wantSvc) return null;
+  const e = String(email || '').toLowerCase();
+  const now = Date.now();
+  const all = await store.listBookingsByAccount(account.id);
+  const has = all.some(b => (b.email || '').toLowerCase() === e && b.status !== 'cancelled' && new Date(b.end).getTime() > now && (wantOrg ? true : b.serviceId === service.id));
+  if (!has) return null;
+  return wantOrg
+    ? `You already have an upcoming booking with ${account.name}. Please attend or cancel it before booking another.`
+    : `You already have an upcoming ${service.name} booking. Please attend or cancel it before booking another.`;
 }
 async function activeCoaches(service) {
   const list = await Promise.all((service.memberIds || []).map(id => store.getMemberById(id)));
@@ -1029,11 +1047,8 @@ app.post('/api/biz/:slug/services/:svcSlug/bookings', async (req, res) => {
   const endDate = new Date(startDate.getTime() + s.durationMins * 60000);
   const ans = collectIntake(s, req.body.intake); if (ans.error) return res.status(400).json({ error: ans.error });
 
-  // One-active-booking rule: block a repeat booking for this service while one is upcoming.
-  if (s.oneActivePerEmail) {
-    const existing = (await store.listBookingsByAccount(a.id)).some(b => b.serviceId === s.id && (b.email || '').toLowerCase() === email.toLowerCase() && b.status !== 'cancelled' && new Date(b.end).getTime() > Date.now());
-    if (existing) return res.status(409).json({ error: `You already have an upcoming ${s.name} booking. Please attend or cancel it before booking another.` });
-  }
+  // One-active-booking rule (per service, or org-wide if the org sets it).
+  const limitMsg = await oneActiveConflict(a, s, email); if (limitMsg) return res.status(409).json({ error: limitMsg });
 
   // Which coaches still have a seat at this exact time?
   const coaches = await activeCoaches(s);

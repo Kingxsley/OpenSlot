@@ -204,7 +204,8 @@
         </div>
         <label>Custom domain <span class="sub" style="font-weight:400">(optional, point a CNAME here)</span></label>
         <input id="o-domain" placeholder="bookings.yourngo.org">
-        <button id="o-save">Save</button> <span class="ok hidden" id="o-ok">Saved</span>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-weight:500"><input type="checkbox" id="o-onebooking" style="width:auto"> One active booking per person across the whole organisation <span class="sub" style="font-weight:400">(blocks a second booking for any service while one is upcoming)</span></label>
+        <button id="o-save" style="margin-top:12px">Save</button> <span class="ok hidden" id="o-ok">Saved</span>
       </div>
 
       <div class="panel">
@@ -545,6 +546,7 @@ function renderOrg(){
   document.getElementById('o-name').value=a.name; document.getElementById('o-web').value=a.website||'';
   document.getElementById('o-color').value=a.brandColor; document.getElementById('o-tz').value=a.timezone;
   document.getElementById('o-domain').value=a.customDomain||'';
+  document.getElementById('o-onebooking').checked=!!a.oneBookingOrgWide;
   // booking-page wording
   const bpv=a.bookingPage||{};
   ['welcome','headline','servicePrompt','teamPrompt','dayPrompt','timesLabel','confirmButton','thankYouHeading','thankYouNote'].forEach(k=>{ const el=document.getElementById('bp-'+k); if(el) el.value=bpv[k]||''; });
@@ -691,7 +693,7 @@ document.getElementById('svc-cancel').onclick=resetSvcForm;
 document.getElementById('svc-addq').onclick=()=>addIntakeRow();
 
 document.getElementById('pol-switch').onclick=async()=>{ try{ const d=await api('/api/org/settings',{method:'PUT',body:JSON.stringify({memberSelfManage:!STATE.account.memberSelfManage})}); STATE.account.memberSelfManage=d.account.memberSelfManage; boot(); }catch(e){ appToast(e.message,'err'); } };
-document.getElementById('o-save').onclick=async()=>{ await api('/api/org/settings',{method:'PUT',body:JSON.stringify({name:document.getElementById('o-name').value,website:document.getElementById('o-web').value,brandColor:document.getElementById('o-color').value,timezone:document.getElementById('o-tz').value,customDomain:document.getElementById('o-domain').value.trim()})}); flash('o-ok'); boot(); };
+document.getElementById('o-save').onclick=async()=>{ await api('/api/org/settings',{method:'PUT',body:JSON.stringify({name:document.getElementById('o-name').value,website:document.getElementById('o-web').value,brandColor:document.getElementById('o-color').value,timezone:document.getElementById('o-tz').value,customDomain:document.getElementById('o-domain').value.trim(),oneBookingOrgWide:document.getElementById('o-onebooking').checked})}); flash('o-ok'); boot(); };
 document.getElementById('p-save').onclick=async()=>{ try{ await api('/api/me/profile',{method:'PUT',body:JSON.stringify({name:document.getElementById('p-name').value.trim(),title:document.getElementById('p-title').value.trim(),imageUrl:document.getElementById('p-image').value.trim(),bio:document.getElementById('p-bio').value.trim(),timezone:document.getElementById('p-tz').value.trim()})}); flash('p-ok'); boot(); }catch(e){ appToast(e.message,'err'); } };
 document.getElementById('p-tz-detect').onclick=()=>{ try{ document.getElementById('p-tz').value=Intl.DateTimeFormat().resolvedOptions().timeZone||''; }catch(e){} };
 document.getElementById('bp-save').onclick=async()=>{ try{
