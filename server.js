@@ -764,7 +764,9 @@ function serviceFromBody(b, members) {
     capacity: Math.max(1, Math.min(500, parseInt(b.capacity, 10) || 1)),
     intakeQuestions: cleanIntake(b.intakeQuestions),
     waitlistEnabled: b.waitlistEnabled !== false,
-    showCoaches: b.showCoaches !== false
+    showCoaches: b.showCoaches !== false,
+    // When on, a person cannot book this service again while they have an upcoming one.
+    oneActivePerEmail: !!b.oneActivePerEmail
   };
 }
 // Shape a service for the org dashboard, with its coaches resolved.
@@ -1026,6 +1028,12 @@ app.post('/api/biz/:slug/services/:svcSlug/bookings', async (req, res) => {
   const startDate = new Date(start); if (isNaN(startDate)) return res.status(400).json({ error: 'Invalid time.' });
   const endDate = new Date(startDate.getTime() + s.durationMins * 60000);
   const ans = collectIntake(s, req.body.intake); if (ans.error) return res.status(400).json({ error: ans.error });
+
+  // One-active-booking rule: block a repeat booking for this service while one is upcoming.
+  if (s.oneActivePerEmail) {
+    const existing = (await store.listBookingsByAccount(a.id)).some(b => b.serviceId === s.id && (b.email || '').toLowerCase() === email.toLowerCase() && b.status !== 'cancelled' && new Date(b.end).getTime() > Date.now());
+    if (existing) return res.status(409).json({ error: `You already have an upcoming ${s.name} booking. Please attend or cancel it before booking another.` });
+  }
 
   // Which coaches still have a seat at this exact time?
   const coaches = await activeCoaches(s);

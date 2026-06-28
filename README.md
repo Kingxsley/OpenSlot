@@ -1,182 +1,192 @@
 # Enjeeoh for NGOs
 
-A free, **multi-tenant** booking platform built for non-profits. Every
-NGO gets its own account, its own branded booking page, and **every feature**. No tiers, no fees, no billing. Organisations are **verified before activation**, so the
-platform stays for genuine non-profits.
+A free, multi-tenant booking platform built for non-profits. Every organisation
+gets its own account, its own branded booking page, and every feature. No tiers,
+no fees, no billing. Organisations are verified before activation, so the platform
+stays for genuine non-profits.
 
-Built with Node.js, Express, and MongoDB (or a JSON file for development).
+Built with Node.js and Express, on MongoDB (or a JSON file for development). No build
+step: the front end is plain HTML, CSS and JavaScript served from `public/`.
 
 ---
 
 ## How it works
 
-1. An NGO applies at `/signup` with their organisation details (name, country,
-   registration/charity number, mission). Their account is created as **pending**.
-2. You (the reviewer) log in at `/review`, check their details, and **approve or
-   reject**. Pending and rejected accounts cannot take public bookings.
-3. Once approved, the NGO's dashboard unlocks and their booking page goes live at
-   `/book/<their-slug>`, with every feature available, free.
+1. An organisation applies at `/signup` (name, country, registration/charity number,
+   mission). Their account is created as pending.
+2. A super admin signs in at `/console`, reviews the application in the Applications
+   tab (Pending / Approved / Rejected), and approves or rejects it.
+3. Once approved, the organisation's dashboard unlocks and its booking page goes live
+   at `/book/<slug>`, with every feature available, free.
 
-Each NGO's data (event types, availability, bookings) is fully isolated by
-`accountId`, so organisations never see each other's information.
+Each organisation's data is fully isolated by `accountId`, so organisations never see
+each other's information.
 
-## What's included for every verified NGO (all free)
+## What every verified organisation gets (all free)
 
-- Unlimited meeting/event types
-- Custom branding (their colour, their name)
-- Timezone-aware availability and double-booking prevention
-- Universal calendar invites: `.ics` + Add-to-Google / Add-to-Outlook links
-- Free built-in video calls via Jitsi (no API keys)
-- An embeddable "Book a time" button for any website they own
-- Optional email confirmations
+- Unlimited members, each with their own login, availability and timezone.
+- Per-person booking pages and team pages.
+- Multi-coach services: one bookable service (for example Coaching) staffed by several
+  people, with combined availability and automatic or visitor-chosen assignment.
+- Group sessions with seat capacity, waitlists, and custom intake questions.
+- Coach profiles with photo, public role/title and bio.
+- Free built-in video calls via Jitsi (no API keys), or phone / in person / custom.
+- Calendar invites (.ics, Add to Google, Add to Outlook).
+- Email confirmations plus 24-hour and 4-hour reminders (and SMS if Twilio is set).
+- A self-manage link in every booking email so people can reschedule or cancel without
+  an account.
+- A bookings report (held, upcoming, cancelled, rescheduled, and who acted) with
+  pagination, filters and CSV export.
+- An embeddable booking widget (button popup or inline) for the organisation's own site.
+- Custom branding (colour and name) and no-code editable booking-page wording.
 
-There is intentionally **no paid tier**. The only gate is NGO verification.
+There is intentionally no paid tier. The only gate is verification.
 
 ---
 
-## Run locally (uses the JSON file store, zero database setup)
+## Putting bookings on your own website
+
+The default booking URL is `your-app.com/book/<slug>`, but bookings can live entirely
+on the organisation's own domain, two ways:
+
+### 1. Inline embed (keep your existing /book page URL)
+
+Drop one line into any page (WordPress, Squarespace, plain HTML) and the booking page
+renders in place. The visitor's URL never changes.
+
+```html
+<script src="https://your-app.com/embed.js" data-org="your-slug" data-mode="inline" data-height="780"></script>
+```
+
+A button-and-popup variant is the default (omit `data-mode`). Options: `data-org`,
+`data-member`, `data-event`, `data-mode` (`inline` or button), `data-height`,
+`data-max-width`, `data-color`, `data-label`. The exact snippets for an organisation
+are shown in its dashboard.
+
+Tip: to gate bookings behind your own rules (eligibility questions, terms), show the
+questions on your page first and only inject the embed script once the visitor passes.
+
+### 2. Custom domain or subdomain
+
+Point a domain at the app and the whole booking site serves there:
+
+- Subdomain: set `BASE_DOMAIN=your-app.com` and a wildcard DNS record, then orgs are at
+  `<slug>.your-app.com`.
+- Custom domain: the org sets a custom domain in its settings (for example
+  `bookings.theirorg.org`) and adds a CNAME to the app. Provision TLS for that domain
+  (Railway custom domains, Cloudflare, or similar). The app resolves the incoming Host
+  header to the right organisation automatically.
+
+---
+
+## Services (multi-coach booking)
+
+In the dashboard, an admin creates a service and assigns the people who provide it. The
+public picks the service, sees everyone's combined availability, and books. Per service
+you can set: duration, location, image and intro text, who staffs it, how clashes are
+handled (visitor chooses / auto-assign / round-robin), seat capacity for group sessions,
+a waitlist, intake questions, whether to show the team, and "one active booking per
+person". Times are computed in each coach's timezone and shown to visitors in their own.
+
+## Demo bookings and the super-admin calendar
+
+The `/demo` page lets a visitor request a demo. If a super admin publishes demo
+availability (Console, Calendar tab), the page instead offers real time slots and the
+visitor books directly, with a professional confirmation email and a self-manage link.
+The Calendar tab shows an agenda of all upcoming sessions across the platform, flagging
+anything starting within four hours.
+
+---
+
+## Run locally (JSON file store, zero database setup)
 
 Requires Node.js 18+.
 
 ```
 npm install
-REVIEWER_EMAIL=you@org.org REVIEWER_PASSWORD=choose-one npm start
+JWT_SECRET=dev-secret SUPERADMIN_EMAIL=you@org.org SUPERADMIN_PASSWORD=choose-a-long-one npm start
 ```
 
 Then:
-- Apply as an NGO: http://localhost:3000/signup
-- Review applications: http://localhost:3000/review (log in with the reviewer creds above)
-- NGO dashboard: http://localhost:3000/admin
-- A booking page (after approval): http://localhost:3000/book/<org-slug>
+- Apply: http://localhost:3000/signup
+- Super admin console: http://localhost:3000/console
+- Dashboard: http://localhost:3000/admin
+- A booking page (after approval): http://localhost:3000/book/<slug>
+
+Run the test suite with `npm test`.
 
 ## Deploy on Railway (production, with MongoDB)
 
 1. Push this folder to a GitHub repo.
-2. Railway -> New Project -> Deploy from GitHub repo.
-3. Railway -> Variables, set everything from `.env.example`:
-   - `PUBLIC_URL` = your Railway URL
+2. Railway, New Project, Deploy from GitHub repo.
+3. Railway, Variables, set what you need from `.env.example`:
+   - `PUBLIC_URL` = your Railway URL (so email links are correct)
    - `JWT_SECRET` = a long random string
-   - `REVIEWER_EMAIL` / `REVIEWER_PASSWORD` = your verification login
-   - `MONGODB_URI` = your MongoDB Atlas connection string (this switches storage to Mongo)
-   - (optional) `SMTP_*` for email + `REVIEW_NOTIFY_EMAIL` to be alerted of new applications
-4. Railway runs `npm start`. Done.
+   - `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` = your console login
+   - `MONGODB_URI` = a MongoDB Atlas connection string (see below, important)
+   - Email (pick one): `RESEND_API_KEY` + `SMTP_FROM`, or `GMAIL_USER` + `GMAIL_APP_PASSWORD`
+   - Optional `REVIEW_NOTIFY_EMAIL` to be alerted of new applications and demo requests
+4. Railway runs `npm start`. The startup log prints warnings if anything important is
+   missing.
 
-### Storage: JSON vs MongoDB
+### Storage: use MongoDB in production
 
 The app auto-selects its database:
-- **No `MONGODB_URI`** -> a local JSON file (`data/platform.json`). Great for testing.
-  On Railway, attach a Volume at `/data` and set `DATA_DIR=/data` so it persists.
-- **`MONGODB_URI` set** -> MongoDB (your Atlas cluster). This is what you want for many
-  NGOs. It handles concurrent writes and scales. Indexes are created automatically.
+- No `MONGODB_URI`: a local JSON file (`data/platform.json`). Fine for testing.
+- `MONGODB_URI` set: MongoDB Atlas. Use this in production. Railway's filesystem is
+  ephemeral and is wiped on every deploy or restart, so without MongoDB you would lose
+  all data. Indexes are created automatically.
 
-Both implement the same interface (`src/store/jsonStore.js` and `src/store/mongoStore.js`),
-so nothing else in the code changes when you switch.
+Both backends implement the same interface (`src/store/jsonStore.js` and
+`src/store/mongoStore.js`), so nothing else changes when you switch.
+
+### Email setup (a common snag)
+
+Pick one provider and set only its variables:
+- Resend or Brevo: needs `SMTP_FROM` on a domain you have verified with them. They will
+  reject a free mailbox like `@gmail.com`.
+- Gmail (free, no domain): set `GMAIL_USER` and a Gmail App Password as
+  `GMAIL_APP_PASSWORD`. Make sure `RESEND_API_KEY` and `BREVO_API_KEY` are not set, or
+  they take priority.
+
+Test it from Console, Security, "Email delivery test", which shows the exact result.
 
 ---
 
-## What's stubbed for later
+## Security
 
-- **Google Meet / Zoom / Teams auto-links** still need each provider's OAuth setup.
-  The location field accepts a custom link today (paste a Meet/Zoom URL per event);
-  auto-generation is the next build. Jitsi covers video for free with zero setup.
-- **Reviewer accounts** are a single env-based login for now. A multi-reviewer system
-  with its own user table is a natural next step if your team grows.
+- Sessions in HttpOnly cookies with double-submit CSRF protection (not in local storage).
+- bcrypt passwords; configurable policy with expiry, reminders and forced resets.
+- Per-IP rate limiting on auth endpoints and temporary lockout after repeated failures.
+- Security response headers (including a Content-Security-Policy) and HTTPS in production.
+- Tenant isolation, input coercion, output escaping, and sanitised image URLs.
+
+## Legal documents
+
+`/privacy`, `/terms`, `/cookies`, `/acceptable-use` and `/dpa` ship as editable pages,
+linked from a `/legal` index. Edit them in place (Console, Design), and each save keeps
+a dated version you can restore or delete (Console, Design, Legal versions). Fill in the
+bracketed placeholders and have them reviewed by a lawyer before launch.
+
+## Roles and permissions
+
+- Super admin: full console (applications, members, organisations, reports, calendar,
+  emails, design, security).
+- Platform admins: onboarding (approve applications) or content (edit the site).
+- Organisation admin / manager / member: manage their own team, services and bookings.
 
 ## Project layout
 
 ```
-server.js                 Express app: signup, login, dashboard, public booking, review
+server.js                 Express app and all API routes
 src/store/index.js        Picks JSON or MongoDB automatically
 src/store/jsonStore.js    JSON file store (dev), multi-tenant
 src/store/mongoStore.js   MongoDB store (production), same interface
 src/availability.js       Timezone-aware slot computation
-src/ics.js                Calendar invite + Google/Outlook links
-src/auth.js               Account + reviewer auth, optional email
-public/signup.html        NGO application form
-public/review.html        Your verification console
-public/admin.html         NGO dashboard
-public/book.html          Public per-NGO booking page
-public/index.html         Landing page
+src/ics.js                Calendar invite and Google/Outlook links
+src/auth.js               Sessions, CSRF, email and SMS transport
+public/                   All front-end pages and shared scripts
+test/smoke.mjs            End-to-end smoke tests (npm test)
 ```
 
 Proprietary. All rights reserved.
-
----
-
-## Teams: multiple users per organisation
-
-Each NGO can have unlimited members, and **every member has their own login and their
-own availability**. The applicant becomes the org **admin**; the admin invites others
-by email (`/admin` -> Organisation -> Team members), and each invitee sets their own
-password and hours via a join link.
-
-### Two permission modes (set per organisation, toggle any time)
-
-- **Members manage their own** (default): each member creates their own meeting types
-  and sets their own hours.
-- **Admin-controlled**: only admins create meeting types (for any member); members
-  still set their own hours. The admin sets a member up via "Set up" on the team list.
-
-Admins can always do everything. The toggle only governs what regular members may do.
-
-### Public URLs with members
-
-- Team page: `/book/<org>` lists everyone; visitors pick a person.
-- Direct: `/book/<org>/<member>` goes straight to one person's calendar.
-- A booking attaches to that specific member; their availability and clashes are theirs alone.
-
-## Branded URLs
-
-Three levels, increasingly "their brand":
-
-1. **Path** (default): `your-app.com/book/riverside-community-trust/james`
-2. **Subdomain**: `riverside.openslot.org`. Set `BASE_DOMAIN=openslot.org` and add a
-   wildcard DNS record `*.openslot.org`. One wildcard TLS cert covers all orgs.
-3. **Custom domain**: `bookings.riverside.org`. The NGO sets the value in their org
-   settings and points a CNAME at your app. You provision TLS for that domain
-   (Railway custom domains / Cloudflare for SaaS / Caddy on-demand TLS).
-
-The app resolves the incoming Host header to the right organisation automatically.
-
----
-
-## Editing the landing page (visual editor)
-
-The public marketing page is editable without touching code. Sign in at `/editor`
-with your reviewer login. You can click any text on the page to edit it in place
-(headline, badge, subheadline, buttons, feature cards), and use the Design panel to
-choose an accent colour, a light or dark theme, and an entrance animation. Press
-"Save and publish" and the public landing at `/` updates immediately, rendering your
-content and playing the animation you chose. Content is stored in the database, so it
-survives restarts and deploys.
-
----
-
-## Donations (keeping the platform funded)
-
-A donation page lives at `/donate`. It is built to route supporters to a secure,
-hosted checkout, so Enjeeoh never handles card details. Sign in there with your
-reviewer login and press "Edit donation page" to set your heading, suggested amounts,
-currency, and one or more payment links: Stripe Payment Link, Open Collective, GitHub
-Sponsors, PayPal, or Ko-fi. The settings are stored in the database and shown publicly.
-
-For a project that funds a free service for NGOs, Open Collective and
-GitHub Sponsors are good first choices because they are transparent and built for this.
-Open Collective can also act as a fiscal host, which can save you setting up your own
-legal entity. Accepting donations has tax and reporting implications that vary by
-country, so check the rules that apply to you before going live. This is general
-information, not legal or financial advice.
-
----
-
-## About and demo pages
-
-Two public pages are included:
-
-- `/about` tells the Enjeeoh story, values, how it works, and a team section. The
-  team names on it are placeholders to replace with your own in `public/about.html`.
-- `/demo` is a full working demo of the booking experience using a fictional charity,
-  Riverside Community Trust, with sample team members. A visitor can pick a person,
-  choose a time, and book, all without signing up. It is self-contained sample data.
-
-Both are linked from the landing navigation alongside Support.

@@ -277,6 +277,13 @@ async function run() {
   ok(full.status === 409 && full.data.full, 'group full once capacity reached');
   ok((await api(`/api/biz/${oslug}/services/coaching/waitlist`, { method: 'POST', body: { name: 'G3', email: 'g3@example.org', date: gd } })).status === 200, 'can join the waitlist when full');
 
+  // one active booking per email
+  await api('/api/org/services/' + svc.data.service.id, { method: 'PUT', token: ADMIN, body: { capacity: 1, oneActivePerEmail: true } });
+  const oas = (await api(`/api/biz/${oslug}/services/coaching/slots?date=${gd}`)).data.slots;
+  ok((await api(`/api/biz/${oslug}/services/coaching/bookings`, { method: 'POST', body: { start: oas[0].start, name: 'Once', email: 'once@example.org' } })).status === 200, 'first booking allowed');
+  ok((await api(`/api/biz/${oslug}/services/coaching/bookings`, { method: 'POST', body: { start: oas[4].start, name: 'Once', email: 'once@example.org' } })).status === 409, 'second active booking blocked for same email');
+  ok((await api(`/api/biz/${oslug}/services/coaching/bookings`, { method: 'POST', body: { start: oas[4].start, name: 'Two', email: 'two@example.org' } })).status === 200, 'a different email can still book a non-overlapping slot');
+
   ok((await api('/api/org/services/' + svc.data.service.id, { method: 'DELETE', token: ADMIN })).status === 200, 'org admin deletes a service');
 
   // ---- no-code booking page wording ----
